@@ -1,5 +1,5 @@
 type Vehicle {
-  """ 
+  """
   Vehicle type reordered
   """
   brand: String

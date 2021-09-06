@@ -1,5 +1,5 @@
 type Vehicle {
-  """ 
+  """
   Vehicle type
   """
   price: Int  # price of the vehicle in ETH
