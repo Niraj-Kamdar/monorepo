@@ -19,6 +19,10 @@ import {
 } from "@web3api/schema-parse";
 
 export const typeInfo: TypeInfo = {
+  environment: {
+    query: {},
+    mutation: {},
+  },
   interfaceTypes: [
     createInterfaceDefinition({
       type: "Namespace",
@@ -343,6 +347,13 @@ export const typeInfo: TypeInfo = {
       properties: [createScalarPropertyDefinition({ name: "prop", type: "String" })],
     },
     {
+      ...createObjectDefinition({ type: "QueryEnv" }),
+      properties: [
+        createScalarPropertyDefinition({ name: "bar", type: "Bytes", required: false }),
+        createScalarPropertyDefinition({ name: "foo", type: "String", required: true }),
+      ],
+    },
+    {
       ...createObjectDefinition({ type: "CommonType", comment: "CommonType comment" }),
       properties: [
         createScalarPropertyDefinition({ name: "prop", type: "UInt8", required: true }),
@@ -391,6 +402,14 @@ export const typeInfo: TypeInfo = {
       properties: [
         createScalarPropertyDefinition({ name: "prop", type: "String", required: true }),
       ],
+    },
+    {
+
+      ...createObjectDefinition({ type: "MutationEnv" }),
+      properties: [
+        { ...createScalarPropertyDefinition({ name: "bar", type: "Int", required: false }) },
+        createScalarPropertyDefinition({ name: "foo", type: "String", required: true }),
+      ]
     },
     {
       ...createObjectDefinition({ type: "CustomMutationType", comment: "CustomMutationType multi-line comment\nline 2" }),

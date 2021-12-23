@@ -107,6 +107,11 @@ type AnotherQueryType {
   prop: String
 }
 
+type QueryEnv {
+  bar: Bytes
+  foo: String!
+}
+
 """
 CommonType comment
 """

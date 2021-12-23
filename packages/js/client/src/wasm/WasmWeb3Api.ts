@@ -9,7 +9,6 @@ import {
   Web3ApiManifest,
   Uri,
   Client,
-  UriResolver,
   InvokableModules,
   GetManifestOptions,
   deserializeWeb3ApiManifest,
@@ -18,6 +17,8 @@ import {
   AnyManifest,
   ManifestType,
   combinePaths,
+  Environment,
+  UriResolver,
   GetFileOptions,
 } from "@web3api/core-js";
 import * as MsgPack from "@msgpack/msgpack";
@@ -42,6 +43,7 @@ export interface State {
   };
   invokeResult: InvokeResult;
   getImplementationsResult?: ArrayBuffer;
+  environment: ArrayBuffer;
 }
 
 export class WasmWeb3Api extends Api {
@@ -54,10 +56,13 @@ export class WasmWeb3Api extends Api {
     mutation?: ArrayBuffer;
   } = {};
 
+  private _sanitizedEnviroment?: ArrayBuffer;
+
   constructor(
     private _uri: Uri,
     private _manifest: Web3ApiManifest,
-    private _uriResolver: Uri
+    private _uriResolver: Uri,
+    private _clientEnvironment?: Environment<Uri>
   ) {
     super();
 
@@ -65,6 +70,7 @@ export class WasmWeb3Api extends Api {
     Tracer.setAttribute("input", {
       uri: this._uri,
       manifest: this._manifest,
+      clientEnviroment: this._clientEnvironment,
       uriResolver: this._uriResolver,
     });
     Tracer.endSpan();
@@ -152,6 +158,16 @@ export class WasmWeb3Api extends Api {
       const { module: invokableModule, method, noDecode } = options;
       const input = options.input || {};
       const wasm = await this._getWasmModule(invokableModule, client);
+      const clientEnvironment = this.getModuleEnvironment(
+        invokableModule,
+        this._clientEnvironment
+      );
+      const sanitizedEnvironment = this._sanitizedEnviroment;
+      const environment = sanitizedEnvironment
+        ? sanitizedEnvironment
+        : MsgPack.encode(clientEnvironment, {
+            ignoreUndefined: true,
+          });
       const state: State = {
         invoke: {},
         subinvoke: {
@@ -159,6 +175,7 @@ export class WasmWeb3Api extends Api {
         },
         invokeResult: {} as InvokeResult,
         method,
+        environment,
         args:
           input instanceof ArrayBuffer
             ? input
@@ -186,6 +203,10 @@ export class WasmWeb3Api extends Api {
       });
 
       const exports = instance.exports as W3Exports;
+
+      if (exports["_w3_load_env"]) {
+        await exports._w3_load_env(state.environment.byteLength);
+      }
 
       const result = await exports._w3_invoke(
         state.method.length,
@@ -280,6 +301,31 @@ export class WasmWeb3Api extends Api {
       return {
         type: "InvokeError",
         invokeError: state.invoke.error,
+      };
+    }
+  }
+
+  private getModuleEnvironment(
+    module: InvokableModules,
+    environment?: Environment<Uri>
+  ): Record<string, unknown> {
+    if (!environment) {
+      return {};
+    }
+
+    const env: Record<string, unknown> = environment.common
+      ? environment.common
+      : {};
+
+    if (module === "query") {
+      return {
+        ...env,
+        ...environment.query,
+      };
+    } else {
+      return {
+        ...env,
+        ...environment.mutation,
       };
     }
   }

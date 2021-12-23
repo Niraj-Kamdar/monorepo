@@ -33,6 +33,8 @@ import {
   GenericDefinition,
   isKind,
   header,
+  AnyDefinition,
+  EnvironmentType,
   InterfaceImplementedDefinition,
   ObjectRef,
   EnumRef,
@@ -165,6 +167,10 @@ export async function resolveImportsAndParseSchemas(
     importedEnumTypes: [],
     importedObjectTypes: [],
     importedQueryTypes: [],
+    environment: {
+      mutation: {},
+      query: {},
+    },
   };
 
   const externalImports = await resolveExternalImports(
@@ -474,8 +480,8 @@ function addCapabilityDirective(
     for (const capability of capabilities) {
       const typeCapture =
         module === "mutation"
-          ? /type[ \n\t]*Mutation[ \n\t]*([^{]*)[ \n\t]*{/g
-          : /type[ \n\t]*Query[ \n\t]*([^{]*)[ \n\t]*{/g;
+          ? /type[ \n\t]+Mutation[ \n\t]+([^{]*)[ \n\t]*{/g
+          : /type[ \n\t]+Query[ \n\t]+([^{]*)[ \n\t]*{/g;
 
       const replacementQueryStr = `type ${
         module === "mutation" ? "Mutation" : "Query"
@@ -1016,6 +1022,52 @@ async function resolveLocalImports(
           typeInfo.enumTypes.push(typesToImport[importType] as EnumDefinition);
         }
       }
+    }
+  }
+}
+
+export function resolveEnviromentTypes(
+  typeInfo: TypeInfo,
+  mutation: boolean
+): void {
+  const genericEnvType = typeInfo.objectTypes.find(
+    (type) => type.type === "Env"
+  );
+  if (!genericEnvType) {
+    return;
+  }
+  const envTypeName = mutation
+    ? EnvironmentType.MutationEnvType
+    : EnvironmentType.QueryEnvType;
+  const specificEnvType = typeInfo.objectTypes.find(
+    (type) => type.type === envTypeName
+  );
+
+  if (!specificEnvType) {
+    genericEnvType.type = envTypeName;
+    return;
+  }
+
+  typeInfo.objectTypes = typeInfo.objectTypes.filter((type) => {
+    return type.type !== genericEnvType.type;
+  });
+
+  checkDuplicateEnvProperties(specificEnvType, genericEnvType.properties);
+  specificEnvType.properties.push(...genericEnvType.properties);
+}
+
+export function checkDuplicateEnvProperties(
+  envType: ObjectDefinition,
+  genericEnvProperties: AnyDefinition[]
+): void {
+  const genericEnvPropertiesSet = new Set(
+    genericEnvProperties.map((genericProperty) => genericProperty.name)
+  );
+  for (const specificProperty of envType.properties) {
+    if (genericEnvPropertiesSet.has(specificProperty.name)) {
+      throw new Error(
+        `Type '${envType.type}' contains duplicate property '${specificProperty.name}' of type 'Env'`
+      );
     }
   }
 }

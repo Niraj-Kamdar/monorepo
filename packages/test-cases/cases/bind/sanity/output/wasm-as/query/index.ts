@@ -8,6 +8,7 @@ export {
   Input_objectMethod
 };
 
+export { QueryEnv } from "./QueryEnv";
 export { CustomType } from "./CustomType";
 export { AnotherType } from "./AnotherType";
 export {
@@ -27,3 +28,5 @@ export {
   sanitizeTestImport_EnumValue
 } from "./imported/TestImport_Enum";
 export { TestImport } from "./TestImport";
+
+export { env } from "./environment";

@@ -622,9 +622,9 @@ describe("Web3ApiClient", () => {
             manifest: {
               schema: "",
               implements: [],
-            },
-          },
-        },
+            }
+          }
+        }
       ],
       interfaces: [
         {
@@ -1816,6 +1816,95 @@ describe("Web3ApiClient", () => {
     expect(invalidArrayMapSent.errors?.[0].message).toMatch(
       /Property must be of type 'array'. Found 'map'./
     );
+  });
+
+  it("environment types", async () => {
+    const api = await buildAndDeployApi(
+      `${GetPathToTestApis()}/environment-types`,
+      ipfsProvider,
+      ensAddress
+    );
+
+    const ensUri = `ens/testnet/${api.ensDomain}`;
+    const client = await getClient({
+      environments: [
+        {
+          uri: "w3://" + (ensUri ? ensUri : "ens/helloworld.eth"),
+          common: {
+            object: {
+              prop: "object string"
+            },
+            str: "string",
+            optFilledStr: "optional string",
+            number: 10,
+            bool: true,
+            en: "FIRST",
+          },
+          mutation: {
+            mutStr: "mutation string",
+          },
+          query: {
+            queryStr: "query string",
+          }
+        }
+      ]
+    });
+
+    const queryEnv = await client.query({
+      uri: ensUri,
+      query: `
+        query {
+          environment(
+            arg: "string"
+          )
+        }
+      `,
+    });
+    expect(queryEnv.errors).toBeFalsy();
+    expect(queryEnv.data?.environment).toEqual({
+      str: "string",
+      optFilledStr: "optional string",
+      optStr: null,
+      number: 10,
+      optNumber: null,
+      bool: true,
+      optBool: null,
+      object: {
+        prop: "object string"
+      },
+      optObject: null,
+      en: 0,
+      optEnum: null,
+      queryStr: "query string"
+    });
+
+    const mutationEnv = await client.query({
+      uri: ensUri,
+      query: `
+        mutation {
+          mutEnvironment(
+            arg: "string"
+          )
+        }
+      `,
+    });
+    expect(mutationEnv.errors).toBeFalsy();
+    expect(mutationEnv.data?.mutEnvironment).toEqual({
+      str: "string",
+      optFilledStr: "optional string",
+      optStr: null,
+      number: 10,
+      optNumber: null,
+      bool: true,
+      optBool: null,
+      object: {
+        prop: "object string"
+      },
+      en: 0,
+      optEnum: null,
+      optObject: null,
+      mutStr: "mutation string"
+    });
   });
 
   it("loadWeb3Api - pass string or Uri", async () => {

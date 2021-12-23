@@ -12,12 +12,28 @@ import {
   createImportedQueryDefinition,
   createImportedObjectDefinition,
   createImportedEnumDefinition,
+  AnyDefinition
   createInterfaceImplementedDefinition,
   createObjectRef
 } from "@web3api/schema-parse";
 
 export const typeInfo: TypeInfo = {
   interfaceTypes: [],
+  environment: {
+    query: {},
+    mutation: {
+      sanitized: {
+        ...createObjectDefinition({ type: "MutationEnv" }),
+        properties: [
+          {
+            ...createScalarPropertyDefinition({ name: "bar", type: "Int", required: false }),
+            first: true,
+            last: true
+          } as AnyDefinition,
+        ],
+      }
+    },
+  },
   enumTypes: [],
   queryTypes: [
     {
@@ -146,6 +162,13 @@ export const typeInfo: TypeInfo = {
     }
   ],
   objectTypes: [
+    {
+      ...createObjectDefinition({ type: "MutationEnv" }),
+      properties: [
+        { ...createScalarPropertyDefinition({ name: "bar", type: "Int", required: false }) },
+        createScalarPropertyDefinition({ name: "foo", type: "String", required: true }),
+      ]
+    },
     {
       ...createObjectDefinition({ type: "CustomMutationType", comment: "CustomMutationType multi-line comment\nline 2" }),
       properties: [

@@ -1,5 +1,8 @@
 import { SchemaFile, SchemaResolvers } from "./types";
-import { resolveImportsAndParseSchemas } from "./resolve";
+import {
+  resolveEnviromentTypes,
+  resolveImportsAndParseSchemas,
+} from "./resolve";
 import { renderSchema } from "./render";
 
 import { TypeInfo, combineTypeInfo } from "@web3api/schema-parse";
@@ -51,6 +54,7 @@ export async function composeSchema(
       name === "mutation",
       resolvers
     );
+    resolveEnviromentTypes(typeInfos[name], name === "mutation");
   }
 
   // Forming our output structure for the caller

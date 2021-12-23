@@ -161,6 +161,11 @@ type AnotherQueryType {
   prop: String
 }
 
+type QueryEnv {
+  bar: Bytes
+  foo: String!
+}
+
 """
 CommonType comment
 """
@@ -190,6 +195,11 @@ type ArrayObject {
 
 type AnotherLocal {
   prop: String!
+}
+
+type MutationEnv {
+  bar: Int
+  foo: String!
 }
 
 """

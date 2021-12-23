@@ -8,6 +8,12 @@ import {
   mutationMethodWrapped,
   objectMethodWrapped
 } from "./Mutation/wrapped";
+import {
+  env
+} from "./environment";
+import {
+  MutationEnv
+} from "./MutationEnv";
 
 export function _w3_invoke(method_size: u32, args_size: u32): bool {
   const args: InvokeArgs = w3_invoke_args(
@@ -24,6 +30,16 @@ export function _w3_invoke(method_size: u32, args_size: u32): bool {
   else {
     return w3_invoke(args, null);
   }
+}
+
+@external("w3", "__w3_load_env")
+export declare function __w3_load_env(enviroment_ptr: u32): void;
+
+export function _w3_load_env(environment_size: u32): void {
+  const environmentBuf = new ArrayBuffer(environment_size);
+  __w3_load_env(changetype<u32>(environmentBuf));
+
+  env = MutationEnv.fromBuffer(environmentBuf);
 }
 
 export function w3Abort(

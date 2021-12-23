@@ -12,6 +12,7 @@ import {
   createImportedQueryDefinition,
   createImportedObjectDefinition,
   createImportedEnumDefinition,
+  AnyDefinition
   createInterfaceImplementedDefinition,
   createObjectRef,
   createInterfaceDefinition,
@@ -31,6 +32,21 @@ export const typeInfo: TypeInfo = {
       }),
     })
   ],
+  environment: {
+    query: {
+      sanitized: {
+        ...createObjectDefinition({ type: "QueryEnv" }),
+        properties: [
+          {
+            ...createScalarPropertyDefinition({ name: "bar", type: "Bytes", required: false }),
+            first: true,
+            last: true
+          } as AnyDefinition
+        ],
+      }
+    },
+    mutation: {},
+  },
   objectTypes: [
     {
       ...createObjectDefinition({ type: "CustomQueryType", comment: "CustomQueryType comment" }),
@@ -98,6 +114,13 @@ export const typeInfo: TypeInfo = {
     {
       ...createObjectDefinition({ type: "AnotherQueryType" }),
       properties: [createScalarPropertyDefinition({ name: "prop", type: "String" })],
+    },
+    {
+      ...createObjectDefinition({ type: "QueryEnv" }),
+      properties: [
+        createScalarPropertyDefinition({ name: "bar", type: "Bytes", required: false }),
+        createScalarPropertyDefinition({ name: "foo", type: "String", required: true }),
+      ],
     },
     {
       ...createObjectDefinition({ type: "CommonType", comment: "CommonType comment" }),
