@@ -1,38 +1,46 @@
-import path from "path";
-import { defaultManifest } from "../../commands/plugin";
 import { clearStyle } from "./utils";
 
-import { runCLI } from "@web3api/test-env-js";
+import { runCLI } from "@polywrap/test-env-js";
+import { GetPathToCliTestFiles } from "@polywrap/test-cases";
 import { compareSync } from "dir-compare";
+import path from "path";
+import fs from "fs";
 
-const HELP = `
-w3 plugin command [options]
+const HELP = `Usage: polywrap plugin|p [options] [command]
 
-Commands:
-  codegen   Generate code for the plugin
+Build/generate types for the plugin
 
 Options:
-  -h, --help                       Show usage information
-  -m, --manifest-path <path>       Path to the Web3API manifest file (default: ${defaultManifest.join(
-    " | "
-  )})
-  -s, --output-schema-path <path>  Output path for the built schema (default: ./build/schema.graphql)
-  -t, --output-types-dir <path>    Output directory for the generated types (default: ./src/w3)
-  -i, --ipfs [<node>]              IPFS node to load external schemas (default: dev-server's node)
-  -e, --ens [<address>]            ENS address to lookup external schemas (default: 0x0000...2e1e)
+  -h, --help         display help for command
 
+Commands:
+  codegen [options]
+  help [command]     display help for command
+`;
+
+const CODEGEN_SUCCESS = `- Manifest loaded from ./polywrap.plugin.yaml
+✔ Manifest loaded from ./polywrap.plugin.yaml
+- Generate types
+✔ Generate types
+- Manifest written to ./build/polywrap.plugin.json
+✔ Manifest written to ./build/polywrap.plugin.json
 `;
 
 describe("e2e tests for plugin command", () => {
-  const projectRoot = path.resolve(__dirname, "../plugin/");
+  const testCaseRoot = path.join(GetPathToCliTestFiles(), "plugin/codegen");
+  const testCases =
+    fs.readdirSync(testCaseRoot, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
+  const getTestCaseDir = (index: number) =>
+    path.join(testCaseRoot, testCases[index]);
 
   test("Should show help text", async () => {
     const { exitCode: code, stdout: output, stderr: error } = await runCLI(
       {
         args: ["plugin", "--help"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
+        cwd: getTestCaseDir(0),
+      }
     );
 
     expect(code).toEqual(0);
@@ -41,99 +49,89 @@ describe("e2e tests for plugin command", () => {
   });
 
   test("Should throw error for invalid params - no command", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI(
+    const { exitCode: code, stderr: error, stdout: output } = await runCLI(
       {
-        args: ["plugin", "--output-dir"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
+        args: ["plugin", "--codegen-dir"],
+        cwd: getTestCaseDir(0),
+      }
     );
 
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output)).toEqual(`Please provide a command
-${HELP}`);
+    expect(code).toEqual(1);
+    expect(error).toContain("error: unknown option '--codegen-dir'");
+    expect(output).toBe("");
   });
 
-  test("Should throw error for invalid params - output-schema-path", async () => {
+  test("Should throw error for invalid params - publish-dir", async () => {
     const { exitCode: code, stdout: output, stderr: error } = await runCLI(
       {
-        args: ["plugin", "codegen", "--output-schema-path"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
+        args: ["plugin", "codegen", "--publish-dir"],
+        cwd: getTestCaseDir(0),
+      }
     );
 
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--output-schema-path option missing <path> argument
-${HELP}`);
+    expect(code).toEqual(1);
+    expect(error).toContain("error: option '-p, --publish-dir <path>' argument missing");
+    expect(output).toBe("");
   });
 
-  test("Should throw error for invalid params - output-types-dir", async () => {
+  test("Should throw error for invalid params - codegen-dir", async () => {
     const { exitCode: code, stdout: output, stderr: error } = await runCLI(
       {
-        args: ["plugin", "codegen", "--output-types-dir"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
+        args: ["plugin", "codegen", "--codegen-dir"],
+        cwd: getTestCaseDir(0),
+      }
     );
 
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--output-types-dir option missing <path> argument
-${HELP}`);
+    expect(code).toEqual(1);
+    expect(error).toContain("error: option '-c, --codegen-dir <path>' argument missing");
+    expect(output).toBe("");
   });
 
   test("Should throw error for invalid params - ens", async () => {
     const { exitCode: code, stdout: output, stderr: error } = await runCLI(
       {
         args: ["plugin", "codegen", "--ens"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
+        cwd: getTestCaseDir(0),
+      }
     );
 
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--ens option missing <[address,]domain> argument
-${HELP}`);
+    expect(code).toEqual(1);
+    expect(error).toContain("error: option '-e, --ens [<address>]' argument missing");
+    expect(output).toBe("");
   });
 
-  test("Should successfully generate types", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI(
-      {
-        args: ["plugin", "codegen"],
-        cwd: projectRoot,
-      },
-      "../../../bin/w3"
-    );
+  describe("test-cases", () => {
+    for (let i = 0; i < testCases.length; ++i) {
+      const testCaseName = testCases[i];
+      const testCaseDir = getTestCaseDir(i);
 
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output)).toEqual(`- Generate types
-- Manifest loaded from ./web3api.plugin.yaml
-✔ Manifest loaded from ./web3api.plugin.yaml
-✔ Generate types
-`);
+      test(testCaseName, async () => {
+        const { exitCode: code, stdout: output, stderr: error } = await runCLI(
+          {
+            args: ["plugin", "codegen"],
+            cwd: testCaseDir,
+          }
+        );
 
-    const expectedTypesResult = compareSync(
-      `${projectRoot}/src/w3`,
-      `${projectRoot}/expected-types`,
-      { compareContent: true }
-    );
+        expect(error).toBe("");
+        expect(code).toEqual(0);
+        expect(clearStyle(output)).toEqual(CODEGEN_SUCCESS);
 
-    expect(expectedTypesResult.differences).toBe(0);
+        const expectedTypesResult = compareSync(
+          `${testCaseDir}/src/wrap`,
+          `${testCaseDir}/expected/src/wrap`,
+          { compareContent: true }
+        );
+        expect(expectedTypesResult.differences).toBe(0);
 
-    const expectedSchemaResult = compareSync(
-      `${projectRoot}/build`,
-      `${projectRoot}/expected-schema`,
-      { compareContent: true }
-    );
+        const expectedBuildResult = compareSync(
+          `${testCaseDir}/build`,
+          `${testCaseDir}/expected/build-artifacts`,
+          { compareContent: true }
+        );
 
-    expect(expectedSchemaResult.differences).toBe(0);
+        expect(expectedBuildResult.differences).toBe(0);
+      });
+    }
   });
 });

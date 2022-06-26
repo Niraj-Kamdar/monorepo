@@ -1,29 +1,45 @@
+import { PolywrapProject, loadBuildManifest } from "../../lib";
+import { clearStyle, polywrapCli } from "./utils";
+
+import { runCLI } from "@polywrap/test-env-js";
+import { GetPathToCliTestFiles } from "@polywrap/test-cases";
+import fs from "fs";
 import path from "path";
-import { clearStyle, w3Cli } from "./utils";
 
-import { runCLI } from "@web3api/test-env-js";
+const HELP = `Usage: polywrap build|b [options]
 
-const HELP = `
-w3 build [options] [<web3api-manifest>]
+Builds a wrapper
 
 Options:
-  -h, --help                         Show usage information
-  -i, --ipfs [<node>]                Upload build results to an IPFS node (default: dev-server's node)
-  -o, --output-dir <path>            Output directory for build results (default: build/)
-  -e, --test-ens <[address,]domain>  Publish the package to a test ENS domain locally (requires --ipfs)
-  -w, --watch                        Automatically rebuild when changes are made (default: false)
-  -v, --verbose                      Verbose output (default: false)
-
+  -m, --manifest-file <path>  Path to the Polywrap Build manifest file
+                              (default: polywrap.yaml | polywrap.yml)
+  -o, --output-dir <path>     Output directory for build results (default:
+                              build/)
+  -w, --watch                 Automatically rebuild when changes are made
+                              (default: false)
+  -v, --verbose               Verbose output (default: false)
+  -h, --help                  display help for command
 `;
 
+jest.setTimeout(500000);
+
 describe("e2e tests for build command", () => {
-  const projectRoot = path.resolve(__dirname, "../project/");
+  const testCaseRoot = path.join(GetPathToCliTestFiles(), "wasm/build-cmd");
+  const testCases =
+    fs.readdirSync(testCaseRoot, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
+  const getTestCaseDir = (index: number) =>
+    path.join(testCaseRoot, testCases[index]);
 
   test("Should show help text", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "--help"],
-      cwd: projectRoot
-    }, w3Cli);
+    const { exitCode: code, stdout: output, stderr: error } = await runCLI(
+      {
+        args: ["build", "--help"],
+        cwd: getTestCaseDir(0),
+        cli: polywrapCli,
+      },
+    );
 
     expect(code).toEqual(0);
     expect(error).toBe("");
@@ -31,110 +47,92 @@ describe("e2e tests for build command", () => {
   });
 
   test("Should throw error for invalid params - outputDir", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "--output-dir"],
-      cwd: projectRoot
-    }, w3Cli);
-
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--output-dir option missing <path> argument
-${HELP}`);
-  });
-
-  test("Should throw error for invalid params - testEns", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "--test-ens"],
-      cwd: projectRoot
-    }, w3Cli);
-
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--test-ens option missing <[address,]domain> argument
-${HELP}`);
-  });
-
-  test("Should throw error for invalid params - ipfs", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "--test-ens", "test.eth"],
-      cwd: projectRoot
-    }, w3Cli);
-
-    expect(code).toEqual(0);
-    expect(error).toBe("");
-    expect(clearStyle(output))
-      .toEqual(`--test-ens option requires the --ipfs [<node>] option
-${HELP}`);
-  });
-
-  test("Should throw error for invalid web3api - invalid route", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "invalid-web3api-1.yaml"],
-      cwd: projectRoot
-    }, w3Cli);
-
-    const schemaPath = path.normalize(`${projectRoot}/src/wrong/schema.graphql`);
+    const { exitCode: code, stdout: output, stderr: error } = await runCLI(
+      {
+        args: ["build", "--output-dir"],
+        cwd: getTestCaseDir(0),
+        cli: polywrapCli,
+      },
+    );
 
     expect(code).toEqual(1);
-    expect(error).toBe("");
-    expect(clearStyle(output)).toContain(`ENOENT: no such file or directory, open '${schemaPath}'`);
+    expect(error).toContain("error: option '-o, --output-dir <path>' argument missing");
+    expect(output).toBe("")
   });
 
-  test("Should throw error for invalid web3api - invalid field", async () => {
-    const { exitCode: code, stdout: output, stderr: error } = await runCLI({
-      args: ["build", "invalid-web3api-2.yaml"],
-      cwd: projectRoot
-    }, w3Cli);
+  test("Adds uuid-v4 suffix to build image if no build manifest specified", async () => {
+    const projectRoot = getTestCaseDir(0);
+    const project = new PolywrapProject({
+      rootDir: projectRoot,
+      polywrapManifestPath: path.join(projectRoot, "polywrap.yaml")
+    });
 
-    expect(code).toEqual(1);
-    expect(error).toBe("");
-    expect(clearStyle(output)).toContain(`instance is not allowed to have the additional property \"wrong_mutation\"`);
+    await project.cacheDefaultBuildImage();
+
+    const cacheBuildEnvPath = path.join(projectRoot, ".polywrap/wasm/build/image")
+    const cachedBuildManifest = await loadBuildManifest(
+      path.join(cacheBuildEnvPath, "polywrap.build.yaml")
+    );
+
+    const buildImageName = cachedBuildManifest.docker?.name
+
+    expect(buildImageName?.length).toBeGreaterThan(36)
+    expect((buildImageName?.match(/-/g) || []).length).toBeGreaterThanOrEqual(4);
   });
 
-  test("Successfully build the project", async () => {
-    const { exitCode: code, stdout: output } = await runCLI({
-      args: ["build", "-v"],
-      cwd: projectRoot
-    }, w3Cli);
+  describe("test-cases", () => {
+    for (let i = 0; i < testCases.length; ++i) {
+      const testCaseName = testCases[i];
+      const testCaseDir = getTestCaseDir(i);
 
-    const manifestPath = "build/web3api.yaml";
-    const sanitizedOutput = clearStyle(output);
+      test(testCaseName, async () => {
+        let { exitCode, stdout, stderr } = await runCLI(
+          {
+            args: ["build", "-v"],
+            cwd: testCaseDir,
+           cli: polywrapCli,
+          },
+        );
 
-    expect(code).toEqual(0);
-    expect(sanitizedOutput).toContain("Artifacts written to ./build from the image `build-env`");
-    expect(sanitizedOutput).toContain("Manifest written to ./build/web3api.yaml");
-    expect(sanitizedOutput).toContain(manifestPath);
-  });
+        stdout = clearStyle(stdout);
+        stderr = clearStyle(stderr);
 
-  test("Successfully builds project w/ web3api.build.yaml but no dockerfile", async () => {
-    const { exitCode: code, stdout: output } = await runCLI({
-      args: ["build", "web3api.no-docker.yaml", "-v"],
-      cwd: projectRoot
-    }, w3Cli);
+        const expected = JSON.parse(
+          fs.readFileSync(
+            path.join(testCaseDir, "expected/output.json"), "utf-8"
+          )
+        );
 
-    const manifestPath = "build/web3api.yaml";
-    const sanitizedOutput = clearStyle(output);
+        if (expected.stdout) {
+          if (Array.isArray(expected.stdout)) {
+            for (const line of expected.stdout) {
+              expect(stdout).toContain(line);
+            }
+          } else {
+            expect(stdout).toContain(expected.stdout);
+          }
+        }
 
-    expect(code).toEqual(0);
-    expect(sanitizedOutput).toContain("Artifacts written to ./build from the image `build-env`");
-    expect(sanitizedOutput).toContain("Manifest written to ./build/web3api.yaml");
-    expect(sanitizedOutput).toContain(manifestPath);
-  });
+        if (expected.stderr) {
+          if (Array.isArray(expected.stderr)) {
+            for (const line of expected.stderr) {
+              expect(stderr).toContain(line);
+            }
+          } else {
+            expect(stderr).toContain(expected.stderr);
+          }
+        }
 
-  test("Successfully builds project w/ dockerfile", async () => {
-    const { exitCode: code, stdout: output } = await runCLI({
-      args: ["build", "web3api.docker.yaml", "-v"],
-      cwd: projectRoot
-    }, w3Cli);
+        if (expected.exitCode) {
+          expect(exitCode).toEqual(expected.exitCode);
+        }
 
-    const manifestPath = "build/web3api.yaml";
-    const sanitizedOutput = clearStyle(output);
-
-    expect(code).toEqual(0);
-    expect(sanitizedOutput).toContain("Artifacts written to ./build from the image `build-env`");
-    expect(sanitizedOutput).toContain("Manifest written to ./build/web3api.yaml");
-    expect(sanitizedOutput).toContain(manifestPath);
+        if (expected.files) {
+          for (const file of expected.files) {
+            expect(fs.existsSync(path.join(testCaseDir, file))).toBeTruthy();
+          }
+        }
+      });
+    }
   });
 });

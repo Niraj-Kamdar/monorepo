@@ -1,4 +1,7 @@
-export const schema: string = `### Web3API Header START ###
+/// NOTE: This is an auto-generated file.
+///       All modifications will be overwritten.
+
+export const schema: string = `### Polywrap Header START ###
 scalar UInt
 scalar UInt8
 scalar UInt16
@@ -9,6 +12,9 @@ scalar Int16
 scalar Int32
 scalar Bytes
 scalar BigInt
+scalar BigNumber
+scalar JSON
+scalar Map
 
 directive @imported(
   uri: String!
@@ -19,23 +25,39 @@ directive @imported(
 directive @imports(
   types: [String!]!
 ) on OBJECT
-### Web3API Header END ###
 
-type Query @imports(
+directive @capability(
+  type: String!
+  uri: String!
+  namespace: String!
+) repeatable on OBJECT
+
+directive @enabled_interface on OBJECT
+
+directive @annotate(type: String!) on FIELD
+
+### Polywrap Header END ###
+
+type Module @imports(
   types: [
-    "TestImport_Query",
+    "TestImport_Module",
     "TestImport_Object",
     "TestImport_AnotherObject",
     "TestImport_Enum"
   ]
+) @capability(
+  type: "getImplementations",
+  uri: "testimport.uri.eth",
+  namespace: "TestImport"
 ) {
-  queryMethod(
+  moduleMethod(
     str: String!
     optStr: String
     en: CustomEnum!
     optEnum: CustomEnum
     enumArray: [CustomEnum!]!
     optEnumArray: [CustomEnum]
+    map: Map! @annotate(type: "Map<String!, Int!>!")
   ): Int!
 
   objectMethod(
@@ -46,30 +68,10 @@ type Query @imports(
   ): AnotherType
 }
 
-type Mutation @imports(
-  types: [
-    "TestImport_Query",
-    "TestImport_Object",
-    "TestImport_AnotherObject",
-    "TestImport_Enum",
-    "TestImport_Mutation"
-  ]
-) {
-  mutationMethod(
-    str: String!
-    optStr: String
-    en: CustomEnum!
-    optEnum: CustomEnum
-    enumArray: [CustomEnum!]!
-    optEnumArray: [CustomEnum]
-  ): Int!
-
-  objectMethod(
-    object: AnotherType!
-    optObject: AnotherType
-    objectArray: [AnotherType!]!
-    optObjectArray: [AnotherType]
-  ): AnotherType
+type Env {
+  prop: String!
+  optProp: String
+  optMap: Map @annotate(type: "Map<String!, Int>")
 }
 
 type CustomType {
@@ -86,6 +88,10 @@ type CustomType {
   i32: Int32!
   bigint: BigInt!
   optBigint: BigInt
+  bignumber: BigNumber!
+  optBignumber: BigNumber
+  json: JSON!
+  optJson: JSON
   bytes: Bytes!
   optBytes: Bytes
   boolean: Boolean!
@@ -111,6 +117,7 @@ type CustomType {
 type AnotherType {
   prop: String
   circular: CustomType
+  const: String
 }
 
 enum CustomEnum {
@@ -118,13 +125,13 @@ enum CustomEnum {
   BYTES
 }
 
-### Imported Queries START ###
+### Imported Modules START ###
 
-type TestImport_Query @imported(
+type TestImport_Module @imported(
   uri: "testimport.uri.eth",
   namespace: "TestImport",
-  nativeType: "Query"
-) {
+  nativeType: "Module"
+) @enabled_interface {
   importedMethod(
     str: String!
     optStr: String
@@ -146,23 +153,7 @@ type TestImport_Query @imported(
   ): Int32!
 }
 
-type TestImport_Mutation @imported(
-  uri: "testimport.uri.eth",
-  namespace: "TestImport",
-  nativeType: "Mutation"
-) {
-  importedMethod(
-    str: String!
-    object: TestImport_Object!
-    objectArray: [TestImport_Object!]!
-  ): TestImport_Object
-
-  anotherMethod(
-    arg: [String!]!
-  ): Int32!
-}
-
-### Imported Queries END ###
+### Imported Modules END ###
 
 ### Imported Objects START ###
 
@@ -190,8 +181,8 @@ type TestImport_AnotherObject @imported(
 }
 
 enum TestImport_Enum @imported(
-  namespace: "TestImport",
   uri: "testimport.uri.eth",
+  namespace: "TestImport",
   nativeType: "Enum"
 ) {
   STRING

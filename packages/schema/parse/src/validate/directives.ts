@@ -1,10 +1,16 @@
 import { ImportedDefinition } from "../typeInfo";
-import { SchemaValidator } from "./SchemaValidator";
+import { SchemaValidator } from ".";
 
 import { DirectiveNode, ASTNode, ObjectTypeDefinitionNode } from "graphql";
 
 export const getSupportedDirectivesValidator = (): SchemaValidator => {
-  const supportedDirectives = ["imported", "imports"];
+  const supportedDirectives = [
+    "imported",
+    "imports",
+    "capability",
+    "enabled_interface",
+    "annotate",
+  ];
   const unsupportedUsages: string[] = [];
 
   return {
@@ -19,7 +25,7 @@ export const getSupportedDirectivesValidator = (): SchemaValidator => {
         },
       },
     },
-    displayValidationMessagesIfExist: () => {
+    cleanup: () => {
       if (unsupportedUsages.length) {
         throw new Error(
           `Found the following usages of unsupported directives:${unsupportedUsages.map(
@@ -38,7 +44,7 @@ export const getImportsDirectiveValidator = (): SchemaValidator => {
     isInsideObjectTypeDefinition = true;
     const badUsageLocations: string[] = [];
 
-    const importsAllowedObjectTypes = ["Query", "Mutation"];
+    const importsAllowedObjectTypes = ["Module"];
     const directives =
       node.directives &&
       node.directives.map((directive) => directive.name.value);
@@ -53,7 +59,7 @@ export const getImportsDirectiveValidator = (): SchemaValidator => {
 
     if (badUsageLocations.length) {
       throw new Error(
-        `@imports directive should only be used on QUERY or MUTATION type definitions, ` +
+        `@imports directive should only be used on Module type definitions, ` +
           `but it is being used on the following ObjectTypeDefinitions:${badUsageLocations.map(
             (b) => `\n${b}`
           )}`
@@ -73,7 +79,7 @@ export const getImportsDirectiveValidator = (): SchemaValidator => {
 
     if (!isInsideObjectTypeDefinition) {
       throw new Error(
-        `@imports directive should only be used on QUERY or MUTATION type definitions, ` +
+        `@imports directive should only be used on Module type definitions, ` +
           `but it is being used in the following location: ${path.join(" -> ")}`
       );
     }

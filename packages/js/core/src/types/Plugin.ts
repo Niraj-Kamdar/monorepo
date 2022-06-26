@@ -1,4 +1,5 @@
-import { Uri, Client, InvokableModules, MaybeAsync } from ".";
+/* eslint-disable @typescript-eslint/naming-convention */
+import { Uri, Client, MaybeAsync, executeMaybeAsyncFunction } from ".";
 
 /**
  * Invocable plugin method.
@@ -6,52 +7,100 @@ import { Uri, Client, InvokableModules, MaybeAsync } from ".";
  * @param input Input arguments for the method, structured as
  * a map, removing the chance of incorrectly ordering arguments.
  * @param client The client instance requesting this invocation.
- * This client will be used for any sub-queries that occur.
+ * This client will be used for any sub-invokes that occur.
  */
-export type PluginMethod = (
-  input: Record<string, unknown>,
-  client: Client
-) => MaybeAsync<unknown>;
+export type PluginMethod<
+  TInput extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown
+> = (input: TInput, client: Client) => MaybeAsync<TResult>;
 
-/**
- * A plugin "module" is a named map of [[PluginMethod | invocable methods]].
- * The names of these methods map 1:1 with the schema's query methods.
- */
-export type PluginModule = Record<string, PluginMethod>;
+export abstract class PluginModule<
+  TConfig,
+  TEnv extends Record<string, unknown> = Record<string, unknown>,
+  TClientEnv extends Record<string, unknown> = TEnv
+> {
+  private _env: TEnv;
+  private _config: TConfig;
 
-/** @ignore */
-type PluginModulesType = {
-  [module in InvokableModules]?: PluginModule;
-};
+  constructor(config: TConfig) {
+    this._config = config;
+  }
 
-/** The plugin's query "modules" */
-export type PluginModules = PluginModulesType;
+  public get env(): TEnv {
+    return this._env;
+  }
 
-/**
- * The plugin instance.
- */
-export abstract class Plugin {
-  /**
-   * Get an instance of this plugin's modules.
-   *
-   * @param client The client instance requesting the modules.
-   * This client will be used for any sub-queries that occur.
-   */
-  public abstract getModules(client: Client): PluginModules;
+  public get config(): TConfig {
+    return this._config;
+  }
+
+  public _wrap_load_env(env: TEnv): void {
+    this._env = env;
+  }
+
+  public async _wrap_sanitize_env(
+    clientEnv: TClientEnv,
+    client: Client
+  ): Promise<TEnv> {
+    if (this.getMethod("sanitizeEnv")) {
+      return this._wrap_invoke<TClientEnv, TEnv>(
+        "sanitizeEnv",
+        clientEnv,
+        client
+      );
+    } else {
+      return Promise.resolve(clientEnv as TEnv);
+    }
+  }
+
+  public async _wrap_invoke<
+    TInput extends Record<string, unknown> = Record<string, unknown>,
+    TResult = unknown
+  >(method: string, input: TInput, client: Client): Promise<TResult> {
+    const fn = this.getMethod<TInput, TResult>(method);
+
+    if (!fn) {
+      throw Error(`Plugin missing method "${method}"`);
+    }
+
+    if (typeof fn !== "function") {
+      throw Error(`Plugin method "${method}" must be of type 'function'`);
+    }
+
+    return await executeMaybeAsyncFunction<TResult>(
+      fn.bind(this, input, client)
+    );
+  }
+
+  public getMethod<
+    TInput extends Record<string, unknown> = Record<string, unknown>,
+    TResult = unknown
+  >(method: string): PluginMethod<TInput, TResult> | undefined {
+    const fn:
+      | PluginMethod<TInput, TResult>
+      | undefined = ((this as unknown) as Record<
+      string,
+      PluginMethod<TInput, TResult>
+    >)[method];
+
+    return fn;
+  }
 }
 
 /** The plugin package's manifest */
 export interface PluginPackageManifest {
-  /** The API's schema */
+  /** The Wrapper's schema */
   schema: string;
 
   /** All interface schemas implemented by this plugin. */
   implements: Uri[];
 }
 
-export type PluginPackage = {
-  factory: () => Plugin;
+export type PluginPackage<TConfig> = {
+  factory: () => PluginModule<TConfig>;
   manifest: PluginPackageManifest;
 };
 
-export type PluginFactory<TOpts> = (opts: TOpts) => PluginPackage;
+export type PluginFactory<TConfig> = (
+  config: TConfig
+) => PluginPackage<TConfig>;

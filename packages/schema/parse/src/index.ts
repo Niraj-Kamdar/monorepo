@@ -2,7 +2,8 @@ import { TypeInfo, createTypeInfo } from "./typeInfo";
 import { extractors, SchemaExtractorBuilder } from "./extract";
 import { TypeInfoTransforms, transformTypeInfo } from "./transform";
 import { finalizePropertyDef } from "./transform/finalizePropertyDef";
-import { SchemaValidatorBuilder, validators } from "./validate";
+import { validators } from "./validate";
+import { SchemaValidatorBuilder } from "./validate";
 
 import { DocumentNode, parse, visit, visitInParallel } from "graphql";
 
@@ -53,15 +54,13 @@ const validate = (
 ) => {
   const allValidators = validators.map((getValidator) => getValidator());
   const allVisitors = allValidators.map((x) => x.visitor);
-  const allDisplayValidationMessages = allValidators.map(
-    (x) => x.displayValidationMessagesIfExist
-  );
+  const allCleanup = allValidators.map((x) => x.cleanup);
 
   visit(astNode, visitInParallel(allVisitors));
 
-  for (const displayValidationMessagesIfExist of allDisplayValidationMessages) {
-    if (displayValidationMessagesIfExist) {
-      displayValidationMessagesIfExist(astNode);
+  for (const cleanup of allCleanup) {
+    if (cleanup) {
+      cleanup(astNode);
     }
   }
 };

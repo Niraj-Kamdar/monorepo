@@ -1,96 +1,57 @@
-import { query, mutation } from "./resolvers";
-import { manifest, Query, Mutation, Options, ResolveResult } from "./w3";
-
 import {
-  Client,
-  Plugin,
-  PluginFactory,
-  PluginPackageManifest,
-} from "@web3api/core-js";
-import CID from "cids";
-import AbortController from "abort-controller";
+  Module,
+  Input_catFile,
+  Input_resolve,
+  Input_tryResolveUri,
+  Input_getFile,
+  Input_addFile,
+  Bytes,
+  Options,
+  ResolveResult,
+  Env,
+  UriResolver_MaybeUriOrManifest,
+  manifest,
+} from "./wrap";
+import { IpfsClient } from "./utils/IpfsClient";
+import { execSimple, execFallbacks } from "./utils/exec";
+
+import { PluginFactory } from "@polywrap/core-js";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const isIPFS = require("is-ipfs");
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/naming-convention
 const createIpfsClient = require("@dorgjelli-test/ipfs-http-client-lite");
 
-interface IpfsClient {
-  add(
-    data: Uint8Array,
-    options?: unknown
-  ): Promise<
-    {
-      name: string;
-      hash: CID;
-    }[]
-  >;
+const getOptions = (input: Options | undefined | null, env: Env): Options => {
+  const options = input || {};
 
-  cat(cid: string, options?: unknown): Promise<Buffer>;
+  if (
+    options.disableParallelRequests === undefined ||
+    options.disableParallelRequests === null
+  ) {
+    options.disableParallelRequests = env.disableParallelRequests;
+  }
 
-  resolve(
-    cid: string,
-    options?: unknown
-  ): Promise<{
-    path: string;
-  }>;
-}
+  return options;
+};
 
-export interface IpfsConfig {
+export interface IpfsPluginConfig {
   provider: string;
   fallbackProviders?: string[];
 }
 
-export class IpfsPlugin extends Plugin {
+export class IpfsPlugin extends Module<IpfsPluginConfig> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore: initialized within setProvider
   private _ipfs: IpfsClient;
 
-  constructor(private _config: IpfsConfig) {
-    super();
-    this.setProvider(this._config.provider);
-  }
-
-  public static manifest(): PluginPackageManifest {
-    return manifest;
+  constructor(config: IpfsPluginConfig) {
+    super(config);
+    this._ipfs = createIpfsClient(this.config.provider);
   }
 
   public static isCID(cid: string): boolean {
     return isIPFS.cid(cid) || isIPFS.cidPath(cid) || isIPFS.ipfsPath(cid);
-  }
-
-  public getModules(
-    _client: Client
-  ): {
-    query: Query.Module;
-    mutation: Mutation.Module;
-  } {
-    return {
-      query: query(this),
-      mutation: mutation(this),
-    };
-  }
-
-  public setProvider(provider: string): void {
-    this._config.provider = provider;
-    this._ipfs = createIpfsClient(provider);
-  }
-
-  public async add(
-    data: Uint8Array
-  ): Promise<{
-    name: string;
-    hash: CID;
-  }> {
-    const result = await this._ipfs.add(data);
-
-    if (result.length === 0) {
-      throw Error(
-        `IpfsPlugin:add failed to add contents. Result of length 0 returned.`
-      );
-    }
-
-    return result[0];
   }
 
   public async cat(cid: string, options?: Options): Promise<Buffer> {
@@ -108,11 +69,17 @@ export class IpfsPlugin extends Plugin {
     return buffer.toString("utf-8");
   }
 
-  public async resolve(cid: string, options?: Options): Promise<ResolveResult> {
+  public async catFile(input: Input_catFile): Promise<Bytes> {
+    const options = getOptions(input.options, this.env);
+    return await this.cat(input.cid, options);
+  }
+
+  public async resolve(input: Input_resolve): Promise<ResolveResult | null> {
+    const options = getOptions(input.options, this.env);
     return await this._execWithOptions(
       "resolve",
       async (ipfs: IpfsClient, provider: string, options: unknown) => {
-        const { path } = await ipfs.resolve(cid, options);
+        const { path } = await ipfs.resolve(input.cid, options);
         return {
           cid: path,
           provider,
@@ -122,86 +89,143 @@ export class IpfsPlugin extends Plugin {
     );
   }
 
+  // uri-resolver.core.polywrap.eth
+  public async tryResolveUri(
+    input: Input_tryResolveUri
+  ): Promise<UriResolver_MaybeUriOrManifest | null> {
+    if (input.authority !== "ipfs") {
+      return null;
+    }
+
+    if (!IpfsPlugin.isCID(input.path)) {
+      // Not a valid CID
+      return { manifest: null, uri: null };
+    }
+
+    const manifestSearchPatterns = [
+      "polywrap.json",
+      "polywrap.yaml",
+      "polywrap.yml",
+    ];
+
+    let manifest: string | undefined;
+
+    for (const manifestSearchPattern of manifestSearchPatterns) {
+      try {
+        manifest = await this.catToString(
+          `${input.path}/${manifestSearchPattern}`,
+          {
+            timeout: 5000,
+            disableParallelRequests: this.env.disableParallelRequests,
+          }
+        );
+      } catch (e) {
+        // TODO: logging
+        // https://github.com/polywrap/monorepo/issues/33
+      }
+    }
+
+    if (manifest) {
+      return { uri: null, manifest };
+    } else {
+      // Nothing found
+      return { uri: null, manifest: null };
+    }
+  }
+
+  public async getFile(input: Input_getFile): Promise<Bytes | null> {
+    try {
+      const result = await this.resolve({
+        cid: input.path,
+        options: {
+          timeout: 5000,
+          disableParallelRequests: this.env.disableParallelRequests,
+        },
+      });
+
+      if (!result) {
+        return null;
+      }
+
+      return await this.cat(result.cid, {
+        provider: result.provider,
+        timeout: 20000,
+        disableParallelRequests: true,
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  public async addFile(input: Input_addFile): Promise<string> {
+    const result = await this._ipfs.add(new Uint8Array(input.data));
+
+    if (result.length === 0) {
+      throw Error(
+        `IpfsPlugin:add failed to add contents. Result of length 0 returned.`
+      );
+    }
+
+    return result[0].hash.toString();
+  }
+
   private async _execWithOptions<TReturn>(
     operation: string,
-    exec: (
+    func: (
       ipfs: IpfsClient,
       provider: string,
       options: unknown
     ) => Promise<TReturn>,
     options?: Options
   ): Promise<TReturn> {
-    if (options) {
-      const timeout = options.timeout || 0;
-      const providerOverride = options.provider;
-
-      if (timeout > 0) {
-        let ipfs = this._ipfs;
-        let provider = providerOverride || this._config.provider;
-        let fallbackIdx = -1;
-        let complete = false;
-        let result: TReturn | undefined = undefined;
-
-        while (!complete) {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), timeout);
-
-          try {
-            result = await exec(ipfs, provider, { signal: controller.signal });
-          } catch (e) {
-            // Handle abort logic below
-          }
-
-          clearTimeout(timer);
-
-          if (
-            controller.signal.aborted &&
-            this._config.fallbackProviders &&
-            !providerOverride
-          ) {
-            // Retry with a new provider
-            fallbackIdx += 1;
-
-            if (fallbackIdx >= this._config.fallbackProviders.length) {
-              complete = true;
-            } else {
-              provider = this._config.fallbackProviders[fallbackIdx];
-              ipfs = createIpfsClient(provider);
-            }
-          } else {
-            complete = true;
-          }
-        }
-
-        if (!result) {
-          throw Error(
-            `${operation}: Timeout has been exceeded, and all providers have been exhausted.\nTimeout: ${timeout}\nProviders: ${
-              providerOverride
-                ? [providerOverride]
-                : [
-                    this._config.provider,
-                    ...(this._config.fallbackProviders || []),
-                  ]
-            }`
-          );
-        }
-
-        return result;
-      } else if (providerOverride) {
-        const ipfs = createIpfsClient(providerOverride);
-        return exec(ipfs, providerOverride, undefined);
-      }
+    if (!options) {
+      // Default behavior if no options are provided
+      return await execSimple(
+        operation,
+        this._ipfs,
+        this.config.provider,
+        0,
+        func
+      );
     }
 
-    // Default behavior
-    return exec(this._ipfs, this._config.provider, undefined);
+    const timeout = options.timeout || 0;
+
+    let providers = [
+      this.config.provider,
+      ...(this.config.fallbackProviders || []),
+    ];
+    let ipfs = this._ipfs;
+    let defaultProvider = this.config.provider;
+
+    // Use the provider default override specified
+    if (options.provider) {
+      providers = [options.provider, ...providers];
+      ipfs = createIpfsClient(options.provider);
+      defaultProvider = options.provider;
+    }
+
+    return await execFallbacks(
+      operation,
+      ipfs,
+      defaultProvider,
+      providers,
+      timeout,
+      func,
+      {
+        parallel: !options.disableParallelRequests,
+      }
+    );
   }
 }
 
-export const ipfsPlugin: PluginFactory<IpfsConfig> = (opts: IpfsConfig) => {
+export const ipfsPlugin: PluginFactory<IpfsPluginConfig> = (
+  config: IpfsPluginConfig
+) => {
   return {
-    factory: () => new IpfsPlugin(opts),
-    manifest: manifest,
+    factory: () => new IpfsPlugin(config),
+    manifest,
   };
 };
+
 export const plugin = ipfsPlugin;

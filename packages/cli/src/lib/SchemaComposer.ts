@@ -1,76 +1,37 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/no-empty-function */
 
-import { Project } from "./project";
+import { Project, AnyManifest, getSimpleClient } from "./";
 
-import { Uri, Web3ApiClient, PluginRegistration } from "@web3api/client-js";
+import { Uri, PolywrapClient } from "@polywrap/client-js";
 import {
   composeSchema,
   ComposerOutput,
   ComposerFilter,
   ComposerOptions,
-} from "@web3api/schema-compose";
-import { ensPlugin } from "@web3api/ens-plugin-js";
-import { ethereumPlugin } from "@web3api/ethereum-plugin-js";
-import { ipfsPlugin } from "@web3api/ipfs-plugin-js";
+  SchemaFile,
+} from "@polywrap/schema-compose";
 import fs from "fs";
 import path from "path";
 import * as gluegun from "gluegun";
-import { SchemaFile } from "@web3api/schema-compose";
 
 export interface SchemaComposerConfig {
-  project: Project;
+  project: Project<AnyManifest>;
 
   // TODO: add this to the project configuration
   //       and make it configurable
   ensAddress?: string;
   ethProvider?: string;
   ipfsProvider?: string;
+  client?: PolywrapClient;
 }
 
 export class SchemaComposer {
-  private _client: Web3ApiClient;
+  private _client: PolywrapClient;
   private _composerOutput: ComposerOutput | undefined;
 
   constructor(private _config: SchemaComposerConfig) {
-    const { ensAddress, ethProvider, ipfsProvider } = this._config;
-    const plugins: PluginRegistration[] = [];
-
-    if (ensAddress) {
-      plugins.push({
-        uri: "w3://ens/ens.web3api.eth",
-        plugin: ensPlugin({
-          addresses: {
-            testnet: ensAddress,
-          },
-        }),
-      });
-    }
-
-    if (ethProvider) {
-      plugins.push({
-        uri: "w3://ens/ethereum.web3api.eth",
-        plugin: ethereumPlugin({
-          networks: {
-            testnet: {
-              provider: ethProvider,
-            },
-          },
-        }),
-      });
-    }
-
-    if (ipfsProvider) {
-      plugins.push({
-        uri: "w3://ens/ipfs.web3api.eth",
-        plugin: ipfsPlugin({
-          provider: ipfsProvider,
-          fallbackProviders: ["https://ipfs.io"],
-        }),
-      });
-    }
-
-    this._client = new Web3ApiClient({ plugins });
+    this._client = this._config.client ?? getSimpleClient(this._config);
   }
 
   public async getComposedSchemas(
@@ -82,7 +43,7 @@ export class SchemaComposer {
 
     const { project } = this._config;
 
-    const schemaNamedPaths = await project.getSchemaNamedPaths();
+    const schemaNamedPath = await project.getSchemaNamedPath();
     const import_redirects = await project.getImportRedirects();
 
     const getSchemaFile = (schemaPath?: string): SchemaFile | undefined =>
@@ -94,7 +55,7 @@ export class SchemaComposer {
         : undefined;
 
     const options: ComposerOptions = {
-      schemas: {},
+      schemas: [],
       resolvers: {
         external: (uri: string) =>
           this._fetchExternalSchema(uri, import_redirects),
@@ -103,16 +64,12 @@ export class SchemaComposer {
       output,
     };
 
-    for (const name of Object.keys(schemaNamedPaths)) {
-      const schemaPath = schemaNamedPaths[name];
-      const schemaFile = getSchemaFile(schemaPath);
-
-      if (!schemaFile) {
-        throw Error(`Schema "${name}" cannot be loaded at path: ${schemaPath}`);
-      }
-
-      options.schemas[name] = schemaFile;
+    const schemaFile = getSchemaFile(schemaNamedPath);
+    if (!schemaFile) {
+      throw Error(`Schema cannot be loaded at path: ${schemaNamedPath}`);
     }
+
+    options.schemas.push(schemaFile);
 
     this._composerOutput = await composeSchema(options);
 
@@ -143,8 +100,7 @@ export class SchemaComposer {
     }
 
     try {
-      const api = await this._client.loadWeb3Api(new Uri(uri));
-      return await api.getSchema(this._client);
+      return await this._client.getSchema(new Uri(uri));
     } catch (e) {
       gluegun.print.error(e);
       throw e;
@@ -155,7 +111,7 @@ export class SchemaComposer {
     return fs.readFileSync(
       path.isAbsolute(schemaPath)
         ? schemaPath
-        : path.join(this._config.project.getRootDir(), schemaPath),
+        : path.join(this._config.project.getManifestDir(), schemaPath),
       "utf-8"
     );
   }

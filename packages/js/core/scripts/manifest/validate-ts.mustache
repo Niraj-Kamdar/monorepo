@@ -8,12 +8,11 @@ import {
   Any{{#latest}}{{type}}{{/latest}},
   {{#latest}}{{type}}{{/latest}}Formats
 } from ".";
-import * as Validators from "../../validators";
-
+{{#validators.length}}import * as Validators from "../../validators";{{/validators.length}}
 {{#formats}}
-import schema_{{tsVersion}} from "@web3api/manifest-schemas/formats/{{dir}}/{{version}}.json";
+import schema_{{tsVersion}} from "@polywrap/manifest-schemas/formats/{{dir}}/{{version}}.json";
 {{/formats}}
-import { Tracer } from "@web3api/tracing-js"
+import { Tracer } from "@polywrap/tracing-js"
 
 import {
   Schema,
@@ -47,7 +46,7 @@ export const validate{{#latest}}{{type}}{{/latest}} = Tracer.traceFunc(
     const schema = schemas[manifest.format as {{#latest}}{{type}}{{/latest}}Formats];
 
     if (!schema) {
-      throw Error(`Unrecognized {{#latest}}{{type}}{{/latest}} schema format "${manifest.format}"`);
+      throw Error(`Unrecognized {{#latest}}{{type}}{{/latest}} schema format "${manifest.format}"\nmanifest: ${JSON.stringify(manifest, null, 2)}`);
     }
 
     const throwIfErrors = (result: ValidatorResult) => {

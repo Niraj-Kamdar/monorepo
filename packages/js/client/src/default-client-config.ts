@@ -1,33 +1,51 @@
-import { ClientConfig } from ".";
+import { ClientConfig, WasmWrapper } from ".";
+import { PluginWrapper } from "./plugin/PluginWrapper";
 
-import { Uri, coreInterfaceUris } from "@web3api/core-js";
-import { ipfsPlugin } from "@web3api/ipfs-plugin-js";
-import { ethereumPlugin } from "@web3api/ethereum-plugin-js";
-import { ensPlugin } from "@web3api/ens-plugin-js";
-import { httpPlugin } from "@web3api/http-plugin-js";
-import { uts46Plugin } from "@web3api/uts46-plugin-js";
-import { sha3Plugin } from "@web3api/sha3-plugin-js";
-import { loggerPlugin } from "@web3api/logger-plugin-js";
-import { Tracer } from "@web3api/tracing-js";
+import {
+  Uri,
+  coreInterfaceUris,
+  PluginPackage,
+  PolywrapManifest,
+  Env,
+  ExtendableUriResolver,
+  CacheResolver,
+  PluginResolver,
+  RedirectsResolver,
+} from "@polywrap/core-js";
+import { ipfsPlugin } from "@polywrap/ipfs-plugin-js";
+import { ethereumPlugin } from "@polywrap/ethereum-plugin-js";
+import { ensPlugin } from "@polywrap/ens-plugin-js";
+import { graphNodePlugin } from "@polywrap/graph-node-plugin-js";
+import { httpPlugin } from "@polywrap/http-plugin-js";
+import { fileSystemPlugin } from "@polywrap/fs-plugin-js";
+import { uts46Plugin } from "@polywrap/uts46-plugin-js";
+import { sha3Plugin } from "@polywrap/sha3-plugin-js";
+import { loggerPlugin } from "@polywrap/logger-plugin-js";
+import { Tracer } from "@polywrap/tracing-js";
+import { fileSystemResolverPlugin } from "@polywrap/fs-resolver-plugin-js";
 
 export const getDefaultClientConfig = Tracer.traceFunc(
   "client-js: getDefaultClientConfig",
   (): ClientConfig<Uri> => {
     return {
+      envs: [],
       redirects: [],
       plugins: [
-        // IPFS is required for downloading Web3API packages
+        // IPFS is required for downloading Polywrap packages
         {
-          uri: new Uri("w3://ens/ipfs.web3api.eth"),
-          plugin: ipfsPlugin({ provider: "https://ipfs.io" }),
+          uri: new Uri("wrap://ens/ipfs.polywrap.eth"),
+          plugin: ipfsPlugin({
+            provider: defaultIpfsProviders[0],
+            fallbackProviders: defaultIpfsProviders.slice(1),
+          }),
         },
         // ENS is required for resolving domain to IPFS hashes
         {
-          uri: new Uri("w3://ens/ens.web3api.eth"),
+          uri: new Uri("wrap://ens/ens.polywrap.eth"),
           plugin: ensPlugin({}),
         },
         {
-          uri: new Uri("w3://ens/ethereum.web3api.eth"),
+          uri: new Uri("wrap://ens/ethereum.polywrap.eth"),
           plugin: ethereumPlugin({
             networks: {
               mainnet: {
@@ -38,35 +56,76 @@ export const getDefaultClientConfig = Tracer.traceFunc(
           }),
         },
         {
-          uri: new Uri("w3://ens/http.web3api.eth"),
-          plugin: httpPlugin(),
+          uri: new Uri("wrap://ens/http.polywrap.eth"),
+          plugin: httpPlugin({}),
         },
         {
-          uri: new Uri("w3://ens/js-logger.web3api.eth"),
-          plugin: loggerPlugin(),
+          uri: new Uri("wrap://ens/js-logger.polywrap.eth"),
+          plugin: loggerPlugin({}),
         },
         {
-          uri: new Uri("w3://ens/uts46.web3api.eth"),
-          plugin: uts46Plugin(),
+          uri: new Uri("wrap://ens/uts46.polywrap.eth"),
+          plugin: uts46Plugin({}),
         },
         {
-          uri: new Uri("w3://ens/sha3.web3api.eth"),
-          plugin: sha3Plugin(),
+          uri: new Uri("wrap://ens/sha3.polywrap.eth"),
+          plugin: sha3Plugin({}),
+        },
+        {
+          uri: new Uri("wrap://ens/graph-node.polywrap.eth"),
+          plugin: graphNodePlugin({
+            provider: "https://api.thegraph.com",
+          }),
+        },
+        {
+          uri: new Uri("wrap://ens/fs.polywrap.eth"),
+          plugin: fileSystemPlugin({}),
+        },
+        {
+          uri: new Uri("wrap://ens/fs-resolver.polywrap.eth"),
+          plugin: fileSystemResolverPlugin({}),
         },
       ],
       interfaces: [
         {
           interface: coreInterfaceUris.uriResolver,
           implementations: [
-            new Uri("w3://ens/ipfs.web3api.eth"),
-            new Uri("w3://ens/ens.web3api.eth"),
+            new Uri("wrap://ens/ipfs.polywrap.eth"),
+            new Uri("wrap://ens/ens.polywrap.eth"),
+            new Uri("wrap://ens/fs-resolver.polywrap.eth"),
           ],
         },
         {
           interface: coreInterfaceUris.logger,
-          implementations: [new Uri("w3://ens/js-logger.web3api.eth")],
+          implementations: [new Uri("wrap://ens/js-logger.polywrap.eth")],
         },
+      ],
+      uriResolvers: [
+        new RedirectsResolver(),
+        new CacheResolver(),
+        new PluginResolver(
+          (
+            uri: Uri,
+            plugin: PluginPackage<unknown>,
+            environment: Env<Uri> | undefined
+          ) => new PluginWrapper(uri, plugin, environment)
+        ),
+        new ExtendableUriResolver(
+          (
+            uri: Uri,
+            manifest: PolywrapManifest,
+            uriResolver: string,
+            environment: Env<Uri> | undefined
+          ) => {
+            return new WasmWrapper(uri, manifest, uriResolver, environment);
+          }
+        ),
       ],
     };
   }
 );
+
+export const defaultIpfsProviders = [
+  "https://ipfs.wrappers.io",
+  "https://ipfs.io",
+];

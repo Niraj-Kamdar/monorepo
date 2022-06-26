@@ -1,16 +1,18 @@
-/* eslint-disable import/no-extraneous-dependencies */
-import { query } from "./resolvers";
-import { manifest, Query, Ethereum_Query } from "./w3";
-
 import {
   Client,
-  Plugin,
-  PluginPackageManifest,
-  PluginFactory,
-} from "@web3api/core-js";
+  Module,
+  Input_tryResolveUri,
+  Input_getFile,
+  UriResolver_MaybeUriOrManifest,
+  Bytes,
+  Ethereum_Module,
+  manifest,
+} from "./wrap";
+
 import { ethers } from "ethers";
 import { Base58 } from "@ethersproject/basex";
 import { getAddress } from "@ethersproject/address";
+import { PluginFactory } from "@polywrap/core-js";
 
 export type Address = string;
 
@@ -18,50 +20,54 @@ export interface Addresses {
   [network: string]: Address;
 }
 
-export interface EnsConfig {
+export interface EnsPluginConfig {
   addresses?: Addresses;
 }
 
-export class EnsPlugin extends Plugin {
-  public static defaultEnsAddress =
-    "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
+export class EnsPlugin extends Module<EnsPluginConfig> {
+  public static defaultAddress = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 
-  constructor(private _config: EnsConfig) {
-    super();
+  constructor(config: EnsPluginConfig) {
+    super(config);
 
     // Sanitize address
-    if (this._config.addresses) {
-      this.setAddresses(this._config.addresses);
+    if (this.config.addresses) {
+      this._setAddresses(this.config.addresses);
     }
   }
 
-  public static manifest(): PluginPackageManifest {
-    return manifest;
-  }
-
-  public static isENSDomain(domain: string): boolean {
-    return ethers.utils.isValidName(domain) && domain.indexOf(".eth") !== -1;
-  }
-
-  public getModules(
+  async tryResolveUri(
+    input: Input_tryResolveUri,
     client: Client
-  ): {
-    query: Query.Module;
-  } {
-    return {
-      query: query(this, client),
-    };
-  }
-
-  public setAddresses(addresses: Addresses): void {
-    this._config.addresses = {};
-
-    for (const network of Object.keys(addresses)) {
-      this._config.addresses[network] = getAddress(addresses[network]);
+  ): Promise<UriResolver_MaybeUriOrManifest | null> {
+    if (input.authority !== "ens") {
+      return null;
     }
+
+    try {
+      const cid = await this.ensToCID(input.path, client);
+
+      if (!cid) {
+        return null;
+      }
+
+      return {
+        uri: `ipfs/${cid}`,
+        manifest: null,
+      };
+    } catch (e) {
+      // TODO: logging https://github.com/polywrap/monorepo/issues/33
+    }
+
+    // Nothing found
+    return { uri: null, manifest: null };
   }
 
-  public async ensToCID(domain: string, client: Client): Promise<string> {
+  getFile(_input: Input_getFile, _client: Client): Bytes | null {
+    return null;
+  }
+
+  async ensToCID(domain: string, client: Client): Promise<string> {
     const ensAbi = {
       resolver:
         "function resolver(bytes32 node) external view returns (address)",
@@ -72,10 +78,10 @@ export class EnsPlugin extends Plugin {
       content: "function content(bytes32 nodehash) view returns (bytes32)",
     };
 
-    let ensAddress = EnsPlugin.defaultEnsAddress;
+    let ensAddress = EnsPlugin.defaultAddress;
 
     // Remove the ENS URI scheme & authority
-    domain = domain.replace("w3://", "");
+    domain = domain.replace("wrap://", "");
     domain = domain.replace("ens/", "");
 
     // Check for non-default network
@@ -92,8 +98,8 @@ export class EnsPlugin extends Plugin {
 
       // Check if we have a custom address configured
       // for this network
-      if (this._config.addresses && this._config.addresses[network]) {
-        ensAddress = this._config.addresses[network];
+      if (this.config.addresses && this.config.addresses[network]) {
+        ensAddress = this.config.addresses[network];
       }
     }
 
@@ -105,7 +111,7 @@ export class EnsPlugin extends Plugin {
       args: string[],
       networkNameOrChainId?: string
     ): Promise<string> => {
-      const { data, error } = await Ethereum_Query.callContractView(
+      const { data, error } = await Ethereum_Module.callContractView(
         {
           address,
           method,
@@ -183,12 +189,23 @@ export class EnsPlugin extends Plugin {
       throw Error(`Unknown CID format, CID hash: ${hash}`);
     }
   }
+
+  private _setAddresses(addresses: Addresses): void {
+    this.config.addresses = {};
+
+    for (const network of Object.keys(addresses)) {
+      this.config.addresses[network] = getAddress(addresses[network]);
+    }
+  }
 }
 
-export const ensPlugin: PluginFactory<EnsConfig> = (opts: EnsConfig) => {
+export const ensPlugin: PluginFactory<EnsPluginConfig> = (
+  config: EnsPluginConfig
+) => {
   return {
-    factory: () => new EnsPlugin(opts),
-    manifest: manifest,
+    factory: () => new EnsPlugin(config),
+    manifest,
   };
 };
+
 export const plugin = ensPlugin;

@@ -1,3 +1,394 @@
+# Polywrap 0.0.1-prealpha.89
+## Features
+* [PR-903](https://github.com/polywrap/monorepo/pull/903) `polywrap` CLI: Recipes have been re-worked into composable workflows, and they can be run using CLI commands.
+* [PR-951](https://github.com/polywrap/monorepo/pull/951) `polywrap` CLI: Docker Buildx output option has been removed.
+* [PR-944](https://github.com/polywrap/monorepo/pull/944) `@polywrap/schema-bind`, `@polywrap/wasm-as`: `Nullable` type has been replaced with `Option` in the Assemblyscript schema bindings.
+* [PR-938](https://github.com/polywrap/monorepo/pull/938) `@polywrap/schema-bind`, `@polywrap/wasm-as`: Rollback of JSON serialization in the Assemblyscript schema bindings.
+
+## Bugs
+* [PR-946](https://github.com/polywrap/monorepo/pull/946) `@polywrap/test-env-js`: Path fix for `npmCLI` test utility.
+
+## Breaking Changes
+* [PR-903](https://github.com/polywrap/monorepo/pull/903) `polywrap` CLI: Running recipes via the `polywrap query ...` command has been deprecated in favor of a new workflows system, accessible via the `polywrap run ...` command.
+* [PR-944](https://github.com/polywrap/monorepo/pull/944) `wasm/assemblyscript` Wrappers: `Nullable` type has been removed in favor of `Option` which also has a different interface.
+* [PR-938](https://github.com/polywrap/monorepo/pull/938) `wasm/assemblyscript` Wrappers: `JSON` serializer and deserializer, and related methods `fromJson` and `toJson` have been removed in favor of `parse` and `stringify`.
+
+# Polywrap 0.0.1-prealpha.88
+## Bugs
+* Various CI/CD fixes.
+
+# Polywrap 0.0.1-prealpha.87
+## Features
+* [PR-928](https://github.com/polywrap/monorepo/pull/928) `@polywrap/manifest-schemas`: Inline documentation has been added to manifest JSON-schemas.
+* [PR-933](https://github.com/polywrap/monorepo/pull/933) Validation package `@polywrap/package-validation` has been implemented to validate WASM wrapper packages.
+
+## Bugs
+* [PR-932](https://github.com/polywrap/monorepo/pull/932) `@polywrap/schema-bind`: Minor fix for JSON type schema bindings
+* [PR-935](https://github.com/polywrap/monorepo/pull/935) `@polywrap/test-env-js`: Path fix for `npmCLI` test utility 
+
+# Polywrap 0.0.1-prealpha.86
+## Features
+* [PR-923](https://github.com/polywrap/monorepo/pull/923) The Polywrap brand has been applied to the codebase.
+* [PR-906](https://github.com/polywrap/monorepo/pull/906) The concept of `Mutation` and `Query` modules has been deprecated. Now all wrapper methods are defined within a single `Module`.
+
+## Breaking Changes
+* [PR-923](https://github.com/polywrap/monorepo/pull/923) All prior integrations using the "Web3API" packages must upgrade to the new "Polywrap" equivalents.
+* [PR-906](https://github.com/polywrap/monorepo/pull/906) All wrappers created prior to this change are incompatible.
+
+# Web3API 0.0.1-prealpha.85
+## Features
+* [PR-910](https://github.com/polywrap/monorepo/pull/910) `@web3api/cli`: `web3api.infra.yaml` manifests now support the concept of "default" modules.
+* [PR-878](https://github.com/polywrap/monorepo/pull/878) `@web3api/client-js`: `Workflows` can now be run using the `client.run(...)` method. Integration into the Polywrap CLI will be released in the near future.
+
+## Bugs
+* [PR-908](https://github.com/polywrap/monorepo/pull/908) `@web3api/asyncify-js`: Improved WebAssembly import sanitization has been added, resolving an ambiguous error that was found when extraneous imports were added to a built module.
+* [PR-902](https://github.com/polywrap/monorepo/pull/902) `@web3api/cli`: `w3 create plugin ...` & `w3 create app ...` now properly parse their expected `language` and `name` arguments.
+
+# Web3API 0.0.1-prealpha.84
+## Features
+* [PR-328](https://github.com/polywrap/monorepo/pull/328) `@web3api/infra`: A modular infrastructure pipeline has been added to the CLI, available via the `w3 infra ...` command. This command allows for custom infra modules to be defined and combined, able to support any 3rd party services your development requires. This command supersedes the old `w3 test-env ...` command.
+* [PR-898](https://github.com/polywrap/monorepo/pull/898) `@web3api/cli`: The `wasm/rust` default build image has been updated to include the `wasm-snip` utility, which helps remove dead code from the wasm modules in a post-processing step. This has reduce the average Rust-based wasm module's size by ~85%.
+* [PR-885](https://github.com/polywrap/monorepo/pull/885) `@web3api/test-env-js`: A `buildApi` helper function has been added.
+
+## Breaking Changes
+* [PR-328](https://github.com/polywrap/monorepo/pull/328) `@web3api/cli`: The `w3 test-env ...` command has been removed and replaced by the `w3 infra ...` command.
+
+# Web3API 0.0.1-prealpha.83
+## Features
+* [PR-870](https://github.com/polywrap/monorepo/pull/870) `@web3api/cli`: The `web3api.deploy.yaml` manifest file now supports the use of environment variables.
+* [PR-866](https://github.com/polywrap/monorepo/pull/866) `@web3api/test-env-js`: The `buildAndDeployApi` test utility now supports recursive ENS subdomain registration.
+
+## Bugs
+* [PR-884](https://github.com/polywrap/monorepo/pull/884) `@web3api/client-js`: Plugin registrations are now properly sanitized, and overridden plugins will be removed from the plugins array.
+* [PR-892](https://github.com/polywrap/monorepo/pull/892) `@web3api/cli`: Some minor fixes have been made to the `wasm/rust` build image's default Dockerfile.
+
+# Web3API 0.0.1-prealpha.82
+## Features
+* [PR-699](https://github.com/polywrap/monorepo/pull/699) `@web3api/cli`: Support for Rust based WebAssembly wrappers has been added.
+
+## Breaking Changes
+* [PR-872](https://github.com/polywrap/monorepo/pull/872) `@web3api/schema-bind`: TypeScript bindings for both app & plugin projects now use `ArrayBuffer` to represent the schema's `Bytes` type, instead of the previous `Uint8Array`.
+
+# Web3API 0.0.1-prealpha.81
+## Features
+* [PR-864](https://github.com/polywrap/monorepo/pull/864) `@web3api/react`: `useWeb3ApiInvoke` and `useWeb3ApiQuery` hooks now support configuring the client's environment, along with all other configuration options.
+* [PR-808](https://github.com/polywrap/monorepo/pull/808) `@web3api/cli`: The `web3api.build.yaml` manifest now supports additional docker buildkit configuration options, including:
+  * local docker image layer cache
+  * custom image output location
+  * remove image after build
+  * remove builder instance after build
+* [PR-827](https://github.com/polywrap/monorepo/pull/827) `@web3api/ethereum-plugin-js`: The provider's connection can now be configured via the wrapper's environment.
+* [PR-807](https://github.com/polywrap/monorepo/pull/807) `@web3api/cli`: Make the CLI's Docker file-lock project specific, instead of global to the CLI installation.
+## Bugs
+* [PR-847](https://github.com/polywrap/monorepo/pull/847) `@web3api/templates`: The template projects used for the `w3 create ...` CLI command now have proper CI setup, and multiple bugs were fixed within them.
+* [PR-861](https://github.com/polywrap/monorepo/pull/861) `@web3api/test-env-js`: The `buildAndDeployApi` function's `ensName` no longer assumes the `.eth` TLD is ommitted, and requires the user to provide it along with the domain name. This was the original behavior, and was modified in release `0.0.1-prealpha.75`.
+## Breaking Changes
+* [PR-859](https://github.com/polywrap/monorepo/pull/859) `@web3api/cli`: The CLI is now built using the `commander` package. The CLI's help text formatting has changed in structure as a result.
+
+# Web3API 0.0.1-prealpha.80
+## Bugs
+* [PR-855](https://github.com/polywrap/monorepo/pull/855) Pinned `@types/prettier` to version `2.6.0` to fix [an issue](https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/60310) that was created by the latest release.
+
+# Web3API 0.0.1-prealpha.79
+## Bugs
+* [PR-852](https://github.com/polywrap/monorepo/pull/852) `@web3api/client-test-env`: The IPFS node's API endpoint now has CORS enabled via the following configuration properties:
+  * API.HTTPHeaders.Access-Control-Allow-Origin: `["*"]`
+  * API.HTTPHeaders.Access-Control-Allow-Methods: `["GET", "POST", "PUT", "DELETE"]`
+
+# Web3API 0.0.1-prealpha.78
+## Bugs
+* Pinned `@types/prettier` to version `2.6.0` to fix [an issue](https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/60310) that was created by the latest release.
+
+# Web3API 0.0.1-prealpha.77
+## Features
+* [PR-846](https://github.com/polywrap/monorepo/pull/846) `@web3api/wasm-as`: Add support for automatic JSON serialization via the `@serial-as/transform` `asc` compiler transformation.
+* [PR-846](https://github.com/polywrap/monorepo/pull/846) `@web3api/schema-bind`: Assemblyscript object types now have `Type.toJson(type)` and `Type.fromJson(json)` static helper methods added to all class instances.
+* [PR-840](https://github.com/polywrap/monorepo/pull/840) `@web3api/cli`: Allow `async getClientConfig` functions within modules passed into the `w3 query` command's `--client-config` option.
+
+# Web3API 0.0.1-prealpha.76
+## Bugs
+* [PR-836](https://github.com/polywrap/monorepo/pull/836) `@web3api/cli`: All commands properly handle the `--help` option.
+
+# Web3API 0.0.1-prealpha.75
+## Features
+* [PR-814](https://github.com/polywrap/monorepo/pull/814) `@web3api/cli`: A modular deployment pipeline has been added to the CLI. It can be accessed via the `w3 deploy` command.
+
+# Web3API 0.0.1-prealpha.74
+## Bugs
+* `@web3api/schema-bind`: Fix incorrect export from `plugin-ts` bindings.
+
+# Web3API 0.0.1-prealpha.73
+## Bugs
+* [PR-821](https://github.com/polywrap/monorepo/pull/821) `@web3api/cli`: Fixed a codegen issue when generating types for plugins with only one module.
+
+# Web3API 0.0.1-prealpha.72
+## Features
+* [PR-620](https://github.com/polywrap/monorepo/pull/620) Plugin DevExp Improvements: The plugin developer experience has been revised to be very close to the API development experience.
+* [PR-697](https://github.com/polywrap/monorepo/pull/697) `BigNumber` Schema Type: The `BigNumber` type is now available for use as a base type for Web3API schemas.
+* [PR-802](https://github.com/polywrap/monorepo/pull/802) `@web3api/cli`: `w3 query ...` command now supports the following options:
+  * `-o, --output-file`: Output file path for the query result.
+  * `-q, --quiet`: Suppress output.
+* [PR-790](https://github.com/polywrap/monorepo/pull/790) `@web3api/schema-bind`: `wasm-as` bindings have been updated to include a helper function `requireEnv()`, which can be used to check if the environment is null or not.
+* [PR-795](https://github.com/polywrap/monorepo/pull/795) `@web3api/templates`: The AssemblyScript & interface templates used for the `w3 create api ...` command has been updated to include metadata (descriptions, icons, etc).
+* [PR-794](https://github.com/polywrap/monorepo/pull/794) `@web3api/templates`: The AssemblyScript template used for the `w3 create api assemblyscript ...` command has been updated to include e2e tests.
+
+# Web3API 0.0.1-prealpha.71
+## Features
+* [PR-777](https://github.com/polywrap/monorepo/pull/777) `@web3api/client-js`: The `Web3ApiClient` now has a public method `loadUriResolvers()`, which will pre-fetch all URI resolver implementations.
+
+## Bugs
+* [Issue-715](https://github.com/polywrap/monorepo/pull/777) [PR-777](https://github.com/polywrap/monorepo/pull/777) `@web3api/client-js`: Custom URI resolver implementations now no longer cause an infinite loop during URI resolution.
+
+## Breaking Changes
+* [PR-777](https://github.com/polywrap/monorepo/pull/777) `@web3api/client-js`: `Web3ApiClient` public method `getResolvers(...)` renamed to `getUriResolvers(...)`.
+* [PR-777](https://github.com/polywrap/monorepo/pull/777) `@web3api/client-js`: `Web3ApiClientConfig` property `resolvers` renamed to `uriResolvers`.
+
+# Web3API 0.0.1-prealpha.70
+## Bugs
+* `@web3api/core-js`: Fixed the manifest migration script for `web3api.meta` from v1 to v3. The `name` property is now migrating properly to `displayName`.
+
+# Web3API 0.0.1-prealpha.69
+## Features
+* [PR-669](https://github.com/polywrap/monorepo/pull/669) `Map<K, V>` schema base-type has been added.
+* [PR-761](https://github.com/polywrap/monorepo/pull/761) Modules now subinvoke interface implementation wrappers through the `__w3_subinvokeImplementation` host import. This now gives us a specific import function for these sort of invocations, which can allow for additional types of verification features to be added by clients.
+* [PR-769](https://github.com/polywrap/monorepo/pull/769) `@web3api/schema-bind`: Add support for `getImplementations` capability in TypeScript plugin (`plugin-ts`) codegen.
+* [PR-763](https://github.com/polywrap/monorepo/pull/763) `@web3api/schema-bind`: The `schema-bind` project is now "module agnostic" and accepts an array of arbitrary modules, which it will pass directly to the different binding projects (`wasm-as`, `plugin-ts`, `app-ts`, etc).
+* [PR-759](https://github.com/polywrap/monorepo/pull/759) `@web3api/manifest-schemas`: Added the `name: string` property to the `web3api` manifest.
+* [PR-759](https://github.com/polywrap/monorepo/pull/759) `@web3api/manifest-schemas`: Renamed `web3api.meta`'s `name` property to `displayName`.
+* [PR-772](https://github.com/polywrap/monorepo/pull/772) `@web3api/manifest-schemas`: Added the `tags: string[]` property to the `web3api.meta` manifest, allowing wrapper to developers to add tag keywords to their package's metadata, helping improve searchability on package indexers like The Polywrap Hub.
+* [PR-747](https://github.com/polywrap/monorepo/pull/747) `@web3api/ethereum-plugin-js`: Changed all instances of the `chainId` property's type to `BigInt` from `UInt32`.
+* [PR-776](https://github.com/polywrap/monorepo/pull/776) `@web3api/ethereum-plugin-js`: Added `getBalance` to the `Query` module, allowing callers to check the native balance of arbitrary addresses.
+
+## Breaking Changes
+* [PR-669](https://github.com/polywrap/monorepo/pull/669) Wrappers that utilize the new `Map<K, V>` schema base-type will break forward compatability of Polywrap clients.
+  * Relevant Downstream Dependencies: `@web3api/client-js`
+* [PR-761](https://github.com/polywrap/monorepo/pull/761) Modules that use the `getImplementations` capability for interfaces will now require the following host imports: `__w3_subinvokeImplementation`, `__w3_subinvokeImplementation_result_len`, `__w3_subinvokeImplementation_result`, `__w3_subinvokeImplementation_error_len`, `__w3_subinvokeImplementation_error`  
+  * Relevant Upstream Dependencies: `@web3api/wasm-as`, `@web3api/schema-bind`, `@web3api/cli`, `@web3api/client-js`
+* [PR-763](https://github.com/polywrap/monorepo/pull/763) `@web3api/schema-bind`: The entry point function's input & output types have changed.
+* [PR-763](https://github.com/polywrap/monorepo/pull/763) `@web3api/cli`: The type of the expected export from user-defined codegen scripts has changed from:
+```typescript
+generateBinding = (
+  output: OutputDirectory,
+  typeInfo: TypeInfo,
+  schema: string,
+  config: Record<string, unknown>
+) => void;
+```
+to
+```typescript
+generateBinding = (
+  options: BindOptions
+) => BindOutput;
+```
+
+## Bugs
+* [PR-766](https://github.com/polywrap/monorepo/pull/766) `@web3api/client-js`: User-configured interface implementations now extend the default configuration's, instead of overwritting them.
+
+# Web3API 0.0.1-prealpha.68
+## Bugs
+* [PR-756](https://github.com/polywrap/monorepo/pull/756) `@web3api/schema-bind`: Imported enums are properly included in the schema bindings when there are no objects imported.
+
+# Web3API 0.0.1-prealpha.67
+## Features
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) Improved the application developer experience by creating a new `w3 app codegen` command, which generated types based on the apps wrapper / plugin integrations. For an example of how this works, see the updated application template projects by running `w3 create app typescript-node my-app` or `w3 create app typescript-react my-app`.
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) `@web3api/react`: Added the `useWeb3ApiInvoke` hook as a non-graphql alternative to `useWeb3ApiQuery`.
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) `@web3api/schema-compose`: Importing all dependency types from a schema import schema statement can now be done through the new wild-card syntax: `#import * into Namespace from "w3://authority/path"`.
+
+## Breaking Changes
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) `@web3api/cli`: `w3 build` CLI command now requires the use of the `--manifest-file <path>` option in order to specify a custom build manifest file path.
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) `@web3api/cli`: `w3 codegen` CLI command option renaming:
+  * `-m, --manifest-path <path>` to `-m, --manifest-file <path>`
+  * `-c, --custom <path>` to `-s, --script <path>`
+  * `-o, --output-dir <path>` to `-c, --codegen-dir <path>`
+* [PR-726](https://github.com/polywrap/monorepo/pull/726) `@web3api/cli`: `w3 plugin` CLI command option renaming:
+  * `-m, --manifest-path <path>` to `-m, --manifest-file <path>`
+
+# Web3API 0.0.1-prealpha.66
+## Features
+* [PR-718](https://github.com/polywrap/monorepo/pull/718) `@web3api/cli`: `w3 plugin codegen` now outputs the plugin manifest to the build directory.
+* [PR-695](https://github.com/polywrap/monorepo/pull/695) `@web3api/ethereum-plugin-js`: Added Query methods: `solidityPack`, `solidityKeccak256`, `soliditySha256`.
+
+## Breaking Changes
+* [PR-718](https://github.com/polywrap/monorepo/pull/718) `@web3api/cli`: `w3 plugin codegen` option `-s, --output-schema-path` changed to `-p, --publish-dir`.
+* [PR-718](https://github.com/polywrap/monorepo/pull/718) `@web3api/cli`: `w3 plugin codegen` option `-t, --output-types-dir` changed to `-c, --codegen-dir`.
+
+# Web3API 0.0.1-prealpha.65
+## Bugs
+* [PR-690](https://github.com/polywrap/monorepo/pull/690) `@web3api/http-plugin-js`: Better axios response header handling for lists.
+* [PR-692](https://github.com/polywrap/monorepo/pull/692) `@web3api/wasm-as`: Properly propogate `Result<T, E>` error upon unwrap exception.
+
+# Web3API 0.0.1-prealpha.64
+## Bugs
+* [PR-685](https://github.com/polywrap/monorepo/pull/685) `@web3api/schema-parse`: Properly support recursive object definition properties.
+
+# Web3API 0.0.1-prealpha.63
+## Features
+* [PR-650](https://github.com/polywrap/monorepo/pull/650) `@web3api/cli`: Add YAML support for query recipes.
+* [PR-385](https://github.com/polywrap/monorepo/pull/385) `@web3api/cli`, `@web3api/client-js`: Use JSON for manifest build artifacts.
+* [PR-678](https://github.com/polywrap/monorepo/pull/678) `@web3api/cli`: Build command no longer uses same docker image name by default. The concept of a "build UUID" has been added, and will be appended to the docker image name (if the develoer has not specified their own inside `web3api.build.yaml`).
+* [PR-610](https://github.com/polywrap/monorepo/pull/610) `@web3api/client-js`: Support the `resolveUri(...)` method on `Web3ApiClient` instances.
+
+## Bugs
+* [PR-665](https://github.com/polywrap/monorepo/pull/665) `@web3api/ethereum-plugin-js`: Fix `TxRequest` property mapping to ethers.js types.
+* [PR-672](https://github.com/polywrap/monorepo/pull/672) `@web3api/core-js`, `@web3api/schema-bind`, `@web3api/schema-parse`: Remove use of the JS string `.substr` method.
+* [PR-673](https://github.com/polywrap/monorepo/pull/673) `@web3api/cli`: The `w3 query ...` command now property sets `exitCode` to 1 if a query fails.
+* [PR-651](https://github.com/polywrap/monorepo/pull/651) `@web3api/http-plugin-js`: JSON payloads are now property supported.
+
+## Breaking Changes
+* [PR-674](https://github.com/polywrap/monorepo/pull/674) `@web3api/cli`, `@web3api/schema-bind`: Return `Result<T, E>` objects from all AssemblyScript subinvoke methods.
+
+# Web3API 0.0.1-prealpha.62
+## Features
+* Use the https://ipfs.wrappers.io IPFS gateway throughout the codebase.
+* Rename TypeInfo `queryTypes` & `importedQueryTypes` to `moduleTypes` & `importedModuleTypes`.
+* `@web3api/ipfs-plugin-js`: Improve the IPFS plugin's URI resolver implementation, and add the ability to query from multiple gateways in parallel.
+
+# Web3API 0.0.1-prealpha.61
+## Features
+* `@web3api/cli`: Added the `--client-config` / `-c` option to the `w3 query` CLI command, allowing the user the define their own client configurations within a JavaScript or TypeScript module.
+* `@web3api/client-js`: Plugins can now be initialized with the client's environment registered at the plugin's URI.
+
+## Bugs
+* `@web3api/schema-bind`: Properly handle reserve words for the bind target's language. Reserved words will be prepended with `m_` in order to avoid compiler errors.
+
+# Web3API 0.0.1-prealpha.60
+## Breaking Changes
+* `@web3api/schema-compose`: `ComposerOptions` property `schemas` is now of type `Record<SchemaKind, SchemaFile>` and not `Record<string, SchemaFile>`.
+* `@web3api/schema-bind`: `TargetLanguage` type has been renamed to `BindLanguage`.
+* `@web3api/schema-bind`: `BindOptions` property `language` has been renamed to `bindLanguage`.
+
+## Bugs
+* `@web3api/cli`: Properly resolve NPM dependency `colors` due to it being [corrupted](https://www.bleepingcomputer.com/news/security/dev-corrupts-npm-libs-colors-and-faker-breaking-thousands-of-apps/).
+* `@web3api/cli`: Plugin schema codegen now properly represents imports types from both Query and Mutation modules.
+* `@web3api/cli`: Properly defined the separation of the `ManifestLanguage` and `BindLanguage` (ex: wasm/assemblyscript -> wasm-as).
+* `@web3api/schema-compose`: Introduce the concept of a `SchemaKind` to help determine how schemas should be combined.
+* `@web3api/schema-compose`: Allow plugins to import mutations within their schemas.
+* `@web3api/schema-bind`: Introduced the concept of `BindTarget` to represent a list of known-good bind targets (`wasm-as`, `plugin-ts`, etc).
+
+# Web3API 0.0.1-prealpha.59
+## Features
+* Web3APIs can now be configured via environment variables. Documentation will be created soon. Initial details on this features specification can be found [here](https://github.com/polywrap/monorepo/issues/140).
+
+# Web3API 0.0.1-prealpha.58
+## Features
+* `@web3api/client-js`: Added `noDecode` invocation option.
+* `@web3api/client-js`: Added `noDefaults` constructor option.
+
+## Bugs
+* `@web3api/ethereum-plugin-js`: The `encodeParams` now properly parses arguments of type Array & Tuple.
+
+# Web3API 0.0.1-prealpha.57
+## Features
+* `@web3api/cli`: CLI command middleware support has been added. The first use-cases implemented are to help ensure Docker is available to the CLI instance, and not in-use by another CLI instance.
+* `@web3api/client-js`: Query-time configuration overrides have been added, allowing developers to define new configurations without having to re-create the client instance.
+
+## Bugs
+* `@web3api/asyncify-js`: Fixed issue [#570](https://github.com/polywrap/monorepo/issues/570) by using a node-version-agnostic way of indexing into the Uint8Array buffer.
+
+# Web3API 0.0.1-prealpha.56
+## Bugs
+* `@web3api/ethereum-plugin-js`: The encodeFunction now support array & object arg types.
+
+# Web3API 0.0.1-prealpha.55
+## Bugs
+* `@web3api/schema-compose`: Properly support empty schema types.
+* `@web3api/asyncify-js`: Fixed a low-level inconsistency between Wasm modules when using imported memory. More details [here](https://github.com/polywrap/monorepo/issues/561).
+* `@web3api/schema-bind`: Fixed issue where imports were inconsistent between `serialization.ts` assemblyscript files, and some necessary imports were missing.
+
+# Web3API 0.0.1-prealpha.54
+## Features
+* `@web3api/ethereum-plugin-js`: Added `getNetwork` to the Ethereum plugin's `Query` module.
+
+# Web3API 0.0.1-prealpha.53
+## Features
+* `as-bigint` upgraded to version `0.4.0`. Improvements made found [here](https://github.com/polywrap/monorepo/pull/552).
+
+# Web3API 0.0.1-prealpha.52
+## Features
+* Querying an interface implementation's modules given its URI is now supported within Wasm.
+
+# Web3API 0.0.1-prealpha.51
+## Features
+* `as-bigint` upgraded to version `0.3.2`. Improvements made found [here](https://github.com/polywrap/monorepo/pull/535).
+
+# Web3API 0.0.1-prealpha.50
+## Features
+* Getting the implementations of an interface is now supported from within Wasm.
+* `@web3api/tracing-js`: Added a class method decorator for tracing.
+
+# Web3API 0.0.1-prealpha.49
+## Features
+* `@web3api/fs-plugin-js`: Added a "File System" plugin, which implements the `uri-resolver` interface, enabling users to load Web3API packages from their local filesystem. For example, a user could specify the URI `/fs/path/to/package/directory`.
+* Upgraded the toolchain's Node.JS version to 16.13.0, which solves compatibility issues with Mac computers using the new M1 processor.
+
+## Bugs
+* `@web3api/cli`: Fixed the `w3 query ...` command's recipe variable parsing logic, better supporting arrays and objects.
+* `@web3api/schema-compose`: Improved import parsing, and added support for recursive schema imports.
+
+# Web3API 0.0.1-prealpha.48
+## Bugs
+* `@web3api/test-env-js`: Allow the usage of this package as an npm package outside of the monorepo folder structure.
+
+# Web3API 0.0.1-prealpha.47
+## Features
+* `@web3api/client-js`: Add the Graph Node plugin to the client's default configuration.
+* `@web3api/ethereum-plugin-js`: Add the `encodeFunction` query method, allowing callers to encode smart contract methods w/ argument values.
+
+# Web3API 0.0.1-prealpha.46
+## Bugs
+* `@web3api/core-js`: Properly check for "undefined" values in query arguments.
+* `@web3api/wasm-as`: Improved MsgPack deserialization of integers (signed & unsigned).
+
+# Web3API 0.0.1-prealpha.45
+## Features
+* `@web3api/tracing-js`: Support service name configuration.
+
+# Web3API 0.0.1-prealpha.44
+## Features
+* `@web3api/client-js`: Use Fleek's IPFS gateway.
+
+# Web3API 0.0.1-prealpha.43
+## Features
+* `@web3api/client-js`: Added the `client.subscribe(...)` method, enabling users to easily send queries at a specified frequency.
+
+## Bugs
+* `@web3api/tracing-js`: Replaced the `util-inspect` dependency with a browser compatible one.
+
+# Web3API 0.0.1-prealpha.42
+## Bugs
+* `@web3api/schema-parse`: Removed unnecessary sanitization for imported methods without any arguments.
+
+# Web3API 0.0.1-prealpha.41
+## Features
+* `@web3api/schema-parse`: Added support for `JSON` as a base type.
+* `@web3api/ens-api`: Merged in an initial version of the ENS Wasm based Web3Api.
+* `web3api.build.yaml`: Added support for the `linked_packages` property, allowing you to link local packages into the dockerized build-env.
+
+## Bugs
+* `@web3api/schema-compose`: Fixed an invalid GraphQL bug that occured when an imported query method did not have any arguments.
+
+# Web3API 0.0.1-prealpha.40
+## Features
+* `@web3api/client-js`: Added `getManifest(...)`, `getFile(...)`, and `getSchema(...)` methods to the client, simply provide a URI.
+* `@web3api/cli`: APIs can now define metadata via the `web3api.meta.yaml` manifest file. Upon compiling your project, the CLI will copy all referenced metadata files into the build directory. Applications such as The Polywrap Hub will use this metadata file to display details about your package such as: title, description, icon, example queries, etc.
+
+## Bugs
+* `@web3api/schema-parse`: Duplicate fields on object & query types are not detected, and will cause a compiler error.
+
+## Breaking Changes
+* `@web3api/client-js`: Removed the `loadWeb3Api(...)` method from the client. This is because we do not want to give the user of the client a direct reference to the underlying API class object. Since garbage collection will delete these, having the user able to hang onto references, will result in them staying in memory.
+
+# Web3API 0.0.1-prealpha.39
+## Features
+* `@web3api/client-js`: Added `https://polywrap-dev.mypinata.cloud` and `https://ipfs.infura.io` as default fallback IPFS providers.
+
+## Bugs
+* `@web3api/ipfs-plugin-js`: Fallback providers are now used if an error is encountered, not just for timeouts.
+
+# Web3API 0.0.1-prealpha.38
+## Breaking Changes
+* `@web3api/client-js`: Removed the usage of `_w3_init`, as it's unnecessary and caused issues with adding Rust-Wasm support.
+
 # Web3API 0.0.1-prealpha.37
 ## Bugs
 * `@web3api/asyncify-js`: Fixed problem when Wasm modules are larger than 4 KB. More info [here](https://github.com/polywrap/monorepo/pull/450).

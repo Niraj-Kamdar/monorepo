@@ -1,167 +1,120 @@
-/* eslint-disable prefer-const */
+import { Command, Program } from "./types";
 import {
   CodeGenerator,
   Compiler,
-  Web3ApiProject,
+  PolywrapProject,
   SchemaComposer,
+  intlMsg,
+  defaultPolywrapManifest,
+  getTestEnvProviders,
+  parseCodegenDirOption,
+  parseCodegenScriptOption,
+  parseWasmManifestFileOption,
 } from "../lib";
-import { intlMsg } from "../lib/intl";
 
-import chalk from "chalk";
-import axios from "axios";
-import { GluegunToolbox } from "gluegun";
+import path from "path";
+import { filesystem } from "gluegun";
 
-export const defaultManifest = ["web3api.yaml", "web3api.yml"];
-
-const optionsStr = intlMsg.commands_options_options();
+const defaultCodegenDir = "./wrap";
 const nodeStr = intlMsg.commands_codegen_options_i_node();
 const pathStr = intlMsg.commands_codegen_options_o_path();
 const addrStr = intlMsg.commands_codegen_options_e_address();
-const defaultManifestStr = defaultManifest.join(" | ");
+const defaultManifestStr = defaultPolywrapManifest.join(" | ");
 
-const HELP = `
-${chalk.bold("w3 codegen")} [${optionsStr}]
+type CodegenCommandOptions = {
+  manifestFile: string;
+  codegenDir: string;
+  script?: string;
+  ipfs?: string;
+  ens?: string;
+};
 
-${optionsStr[0].toUpperCase() + optionsStr.slice(1)}:
-  -h, --help                              ${intlMsg.commands_codegen_options_h()}
-  -m, --manifest-path <${pathStr}>              ${intlMsg.commands_codegen_options_m()}: ${defaultManifestStr})
-  -c, --custom <${pathStr}>                     ${intlMsg.commands_codegen_options_c()}
-  -o, --output-dir <${pathStr}>                 ${intlMsg.commands_codegen_options_o()}
-  -i, --ipfs [<${nodeStr}>]                     ${intlMsg.commands_codegen_options_i()}
-  -e, --ens [<${addrStr}>]                   ${intlMsg.commands_codegen_options_e()}
-`;
-
-export default {
-  alias: ["g"],
-  description: intlMsg.commands_codegen_description(),
-  run: async (toolbox: GluegunToolbox): Promise<void> => {
-    const { filesystem, parameters, print } = toolbox;
-
-    const { h, c, m, i, o, e } = parameters.options;
-    let {
-      help,
-      custom,
-      manifestPath,
-      ipfs,
-      outputDir,
-      ens,
-    } = parameters.options;
-
-    help = help || h;
-    custom = custom || c;
-    manifestPath = manifestPath || m;
-    ipfs = ipfs || i;
-    outputDir = outputDir || o;
-    ens = ens || e;
-
-    if (help) {
-      print.info(HELP);
-      return;
-    }
-
-    if (custom === true) {
-      const customScriptMissingPathMessage = intlMsg.commands_codegen_error_customScriptMissingPath(
-        {
-          option: "--custom",
-          argument: `<${pathStr}>`,
-        }
-      );
-      print.error(customScriptMissingPathMessage);
-      print.info(HELP);
-      return;
-    }
-
-    if (outputDir === true) {
-      const outputDirMissingPathMessage = intlMsg.commands_build_error_outputDirMissingPath(
-        {
-          option: "--output-dir",
-          argument: `<${pathStr}>`,
-        }
-      );
-      print.error(outputDirMissingPathMessage);
-      print.info(HELP);
-      return;
-    }
-
-    if (ens === true) {
-      const domStr = intlMsg.commands_codegen_error_domain();
-      const ensAddressMissingMessage = intlMsg.commands_build_error_testEnsAddressMissing(
-        {
-          option: "--ens",
-          argument: `<[${addrStr},]${domStr}>`,
-        }
-      );
-      print.error(ensAddressMissingMessage);
-      print.info(HELP);
-      return;
-    }
-
-    let ipfsProvider: string | undefined;
-    let ethProvider: string | undefined;
-    let ensAddress: string | undefined = ens;
-
-    if (typeof ipfs === "string") {
-      // Custom IPFS provider
-      ipfsProvider = ipfs;
-    } else if (ipfs) {
-      // Dev-server IPFS provider
-      try {
-        const {
-          data: { ipfs, ethereum },
-        } = await axios.get("http://localhost:4040/providers");
-        ipfsProvider = ipfs;
-        ethProvider = ethereum;
-      } catch (e) {
-        // Dev server not found
-      }
-    }
-
-    // Resolve generation file & output directories
-    const customScript = custom && filesystem.resolve(custom);
-    manifestPath =
-      (manifestPath && filesystem.resolve(manifestPath)) ||
-      ((await filesystem.existsAsync(defaultManifest[0]))
-        ? filesystem.resolve(defaultManifest[0])
-        : filesystem.resolve(defaultManifest[1]));
-    outputDir = outputDir && filesystem.resolve(outputDir);
-
-    const project = new Web3ApiProject({
-      web3apiManifestPath: manifestPath,
-    });
-
-    const schemaComposer = new SchemaComposer({
-      project,
-      ipfsProvider,
-      ethProvider,
-      ensAddress,
-    });
-
-    let result = false;
-
-    if (customScript) {
-      const codeGenerator = new CodeGenerator({
-        project,
-        schemaComposer,
-        customScript,
-        outputDir: outputDir || filesystem.path("types"),
+export const codegen: Command = {
+  setup: (program: Program) => {
+    program
+      .command("codegen")
+      .alias("g")
+      .description(intlMsg.commands_codegen_description())
+      .option(
+        `-m, --manifest-file <${pathStr}>`,
+        `${intlMsg.commands_codegen_options_m({
+          default: defaultManifestStr,
+        })}`
+      )
+      .option(
+        `-c, --codegen-dir <${pathStr}>`,
+        ` ${intlMsg.commands_codegen_options_codegen({
+          default: defaultCodegenDir,
+        })}`
+      )
+      .option(
+        `-s, --script <${pathStr}>`,
+        `${intlMsg.commands_codegen_options_s()}`
+      )
+      .option(
+        `-i, --ipfs [<${nodeStr}>]`,
+        `${intlMsg.commands_codegen_options_i()}`
+      )
+      .option(
+        `-e, --ens [<${addrStr}>]`,
+        `${intlMsg.commands_codegen_options_e()}`
+      )
+      .action(async (options) => {
+        await run({
+          ...options,
+          codegenDir: parseCodegenDirOption(options.codegenDir, undefined),
+          script: parseCodegenScriptOption(options.script, undefined),
+          manifestFile: parseWasmManifestFileOption(
+            options.manifestFile,
+            undefined
+          ),
+        });
       });
-
-      result = await codeGenerator.generate();
-    } else {
-      const compiler = new Compiler({
-        project,
-        outputDir: filesystem.path("build"),
-        schemaComposer,
-      });
-
-      result = await compiler.codegen();
-    }
-
-    if (result) {
-      print.success(`🔥 ${intlMsg.commands_codegen_success()} 🔥`);
-      process.exitCode = 0;
-    } else {
-      process.exitCode = 1;
-    }
   },
 };
+
+async function run(options: CodegenCommandOptions) {
+  const { ipfs, ens, manifestFile, codegenDir, script } = options;
+  const { ipfsProvider, ethProvider } = await getTestEnvProviders(ipfs);
+  const ensAddress: string | undefined = ens;
+
+  // Polywrap Project
+  const project = new PolywrapProject({
+    rootDir: path.dirname(manifestFile),
+    polywrapManifestPath: manifestFile,
+  });
+  await project.validate();
+  const schemaComposer = new SchemaComposer({
+    project,
+    ipfsProvider,
+    ethProvider,
+    ensAddress,
+  });
+
+  let result = false;
+  if (script) {
+    const codeGenerator = new CodeGenerator({
+      project,
+      schemaComposer,
+      customScript: script,
+      codegenDirAbs: codegenDir,
+    });
+
+    result = await codeGenerator.generate();
+  } else {
+    const compiler = new Compiler({
+      project,
+      outputDir: filesystem.path("build"),
+      schemaComposer,
+    });
+
+    result = await compiler.codegen();
+  }
+
+  if (result) {
+    console.log(`🔥 ${intlMsg.commands_codegen_success()} 🔥`);
+    process.exitCode = 0;
+  } else {
+    process.exitCode = 1;
+  }
+}

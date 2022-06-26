@@ -1,10 +1,14 @@
-// @ts-noCheck
+/// NOTE: This is an auto-generated file.
+///       All modifications will be overwritten.
+
+// @ts-ignore
 import * as Types from "./";
 
+// @ts-ignore
 import {
   Client,
-  InvokeApiResult
-} from "@web3api/core-js";
+  InvokeResult
+} from "@polywrap/core-js";
 
 export type UInt = number;
 export type UInt8 = number;
@@ -14,37 +18,52 @@ export type Int = number;
 export type Int8 = number;
 export type Int16 = number;
 export type Int32 = number;
-export type Bytes = Uint8Array;
+export type Bytes = ArrayBuffer;
 export type BigInt = string;
+export type BigNumber = string;
+export type Json = string;
 export type String = string;
 export type Boolean = boolean;
 
+/// Envs START ///
+export interface Env extends Record<string, unknown> {
+  prop: Types.String;
+  optProp?: Types.String | null;
+  optMap?: Map<Types.String, Types.Int | undefined> | null;
+}
+/// Envs END ///
+
+/// Objects START ///
 export interface CustomType {
-  str: String;
-  optStr?: String | null;
-  u: UInt;
-  optU?: UInt | null;
-  u8: UInt8;
-  u16: UInt16;
-  u32: UInt32;
-  i: Int;
-  i8: Int8;
-  i16: Int16;
-  i32: Int32;
-  bigint: BigInt;
-  optBigint?: BigInt | null;
-  bytes: Bytes;
-  optBytes?: Bytes | null;
-  boolean: Boolean;
-  optBoolean?: Boolean | null;
-  uArray: Array<UInt>;
-  uOptArray?: Array<UInt> | null;
-  optUOptArray?: Array<UInt | null> | null;
-  optStrOptArray?: Array<String | null> | null;
-  uArrayArray: Array<Array<UInt>>;
-  uOptArrayOptArray: Array<Array<UInt32 | null> | null>;
-  uArrayOptArrayArray: Array<Array<Array<UInt32>> | null>;
-  crazyArray?: Array<Array<Array<Array<UInt32> | null>> | null> | null;
+  str: Types.String;
+  optStr?: Types.String | null;
+  u: Types.UInt;
+  optU?: Types.UInt | null;
+  u8: Types.UInt8;
+  u16: Types.UInt16;
+  u32: Types.UInt32;
+  i: Types.Int;
+  i8: Types.Int8;
+  i16: Types.Int16;
+  i32: Types.Int32;
+  bigint: Types.BigInt;
+  optBigint?: Types.BigInt | null;
+  bignumber: Types.BigNumber;
+  optBignumber?: Types.BigNumber | null;
+  json: Types.Json;
+  optJson?: Types.Json | null;
+  bytes: Types.Bytes;
+  optBytes?: Types.Bytes | null;
+  boolean: Types.Boolean;
+  optBoolean?: Types.Boolean | null;
+  uArray: Array<Types.UInt>;
+  uOptArray?: Array<Types.UInt> | null;
+  optUOptArray?: Array<Types.UInt | null> | null;
+  optStrOptArray?: Array<Types.String | null> | null;
+  uArrayArray: Array<Array<Types.UInt>>;
+  uOptArrayOptArray: Array<Array<Types.UInt32 | null> | null>;
+  uArrayOptArrayArray: Array<Array<Array<Types.UInt32>> | null>;
+  crazyArray?: Array<Array<Array<Array<Types.UInt32> | null>> | null> | null;
   object: Types.AnotherType;
   optObject?: Types.AnotherType | null;
   objectArray: Array<Types.AnotherType>;
@@ -56,10 +75,14 @@ export interface CustomType {
 }
 
 export interface AnotherType {
-  prop?: String | null;
+  prop?: Types.String | null;
   circular?: Types.CustomType | null;
+  const?: Types.String | null;
 }
 
+/// Objects END ///
+
+/// Enums START ///
 export enum CustomEnumEnum {
   STRING,
   BYTES,
@@ -70,6 +93,8 @@ export type CustomEnumString =
   | "BYTES"
 
 export type CustomEnum = CustomEnumEnum | CustomEnumString;
+
+/// Enums END ///
 
 /// Imported Objects START ///
 
@@ -87,7 +112,7 @@ export interface TestImport_Object {
 
 /* URI: "testimport.uri.eth" */
 export interface TestImport_AnotherObject {
-  prop: String;
+  prop: Types.String;
 }
 
 /* URI: "testimport.uri.eth" */
@@ -104,15 +129,15 @@ export type TestImport_Enum = TestImport_EnumEnum | TestImport_EnumString;
 
 /// Imported Objects END ///
 
-/// Imported Queries START ///
+/// Imported Modules START ///
 
 /* URI: "testimport.uri.eth" */
-interface TestImport_Query_Input_importedMethod extends Record<string, unknown> {
-  str: String;
-  optStr?: String | null;
-  u: UInt;
-  optU?: UInt | null;
-  uArrayArray: Array<Array<UInt | null> | null>;
+interface TestImport_Module_Input_importedMethod extends Record<string, unknown> {
+  str: Types.String;
+  optStr?: Types.String | null;
+  u: Types.UInt;
+  optU?: Types.UInt | null;
+  uArrayArray: Array<Array<Types.UInt | null> | null>;
   object: Types.TestImport_Object;
   optObject?: Types.TestImport_Object | null;
   objectArray: Array<Types.TestImport_Object>;
@@ -124,74 +149,46 @@ interface TestImport_Query_Input_importedMethod extends Record<string, unknown> 
 }
 
 /* URI: "testimport.uri.eth" */
-interface TestImport_Query_Input_anotherMethod extends Record<string, unknown> {
-  arg: Array<String>;
+interface TestImport_Module_Input_anotherMethod extends Record<string, unknown> {
+  arg: Array<Types.String>;
 }
 
 /* URI: "testimport.uri.eth" */
-export const TestImport_Query = {
-  importedMethod: async (
-    input: TestImport_Query_Input_importedMethod,
+export class TestImport_Module {
+  public static interfaceUri: string = "testimport.uri.eth";
+
+  constructor(public uri: string) {
+  }
+
+  public async importedMethod (
+    input: TestImport_Module_Input_importedMethod,
     client: Client
-  ): Promise<InvokeApiResult<Types.TestImport_Object | null>> => {
+  ): Promise<InvokeResult<Types.TestImport_Object | null>> {
     return client.invoke<Types.TestImport_Object | null>({
-      uri: "testimport.uri.eth",
-      module: "query",
+      uri: this.uri,
       method: "importedMethod",
       input
     });
-  },
+  }
 
-  anotherMethod: async (
-    input: TestImport_Query_Input_anotherMethod,
+  public async anotherMethod (
+    input: TestImport_Module_Input_anotherMethod,
     client: Client
-  ): Promise<InvokeApiResult<Int32>> => {
-    return client.invoke<Int32>({
-      uri: "testimport.uri.eth",
-      module: "query",
+  ): Promise<InvokeResult<Types.Int32>> {
+    return client.invoke<Types.Int32>({
+      uri: this.uri,
       method: "anotherMethod",
       input
     });
   }
 }
 
-/* URI: "testimport.uri.eth" */
-interface TestImport_Mutation_Input_importedMethod extends Record<string, unknown> {
-  str: String;
-  object: Types.TestImport_Object;
-  objectArray: Array<Types.TestImport_Object>;
-}
+/// Imported Modules END ///
 
-/* URI: "testimport.uri.eth" */
-interface TestImport_Mutation_Input_anotherMethod extends Record<string, unknown> {
-  arg: Array<String>;
-}
+export class TestImport {
+  static uri: string = "testimport.uri.eth";
 
-/* URI: "testimport.uri.eth" */
-export const TestImport_Mutation = {
-  importedMethod: async (
-    input: TestImport_Mutation_Input_importedMethod,
-    client: Client
-  ): Promise<InvokeApiResult<Types.TestImport_Object | null>> => {
-    return client.invoke<Types.TestImport_Object | null>({
-      uri: "testimport.uri.eth",
-      module: "mutation",
-      method: "importedMethod",
-      input
-    });
-  },
-
-  anotherMethod: async (
-    input: TestImport_Mutation_Input_anotherMethod,
-    client: Client
-  ): Promise<InvokeApiResult<Int32>> => {
-    return client.invoke<Int32>({
-      uri: "testimport.uri.eth",
-      module: "mutation",
-      method: "anotherMethod",
-      input
-    });
+  public static getImplementations(client: Client): string[] {
+    return client.getImplementations(this.uri, {});
   }
 }
-
-/// Imported Queries END ///

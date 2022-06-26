@@ -1,7 +1,7 @@
-// TODO: https://github.com/web3-api/monorepo/issues/101
-import { Uri, Client, InvokeApiResult } from "../";
+// TODO: https://github.com/polywrap/monorepo/issues/101
+import { Uri, InvokeHandler, InvokeResult } from "../";
 
-import { Tracer } from "@web3api/tracing-js";
+import { Tracer } from "@polywrap/tracing-js";
 
 export interface MaybeUriOrManifest {
   uri?: string;
@@ -13,13 +13,12 @@ export const Query = {
   tryResolveUri: Tracer.traceFunc(
     "core: uri-resolver: tryResolveUri",
     async (
-      client: Client,
-      api: Uri,
+      invoke: InvokeHandler["invoke"],
+      wrapper: Uri,
       uri: Uri
-    ): Promise<InvokeApiResult<MaybeUriOrManifest>> => {
-      return client.invoke<MaybeUriOrManifest>({
-        uri: api.uri,
-        module: "query",
+    ): Promise<InvokeResult<MaybeUriOrManifest>> => {
+      return invoke<MaybeUriOrManifest>({
+        uri: wrapper.uri,
         method: `tryResolveUri`,
         input: {
           authority: uri.authority,
@@ -31,13 +30,12 @@ export const Query = {
   getFile: Tracer.traceFunc(
     "core: uri-resolver: getFile",
     async (
-      client: Client,
-      api: Uri,
+      invoke: InvokeHandler["invoke"],
+      wrapper: Uri,
       path: string
-    ): Promise<InvokeApiResult<ArrayBuffer>> => {
-      return client.invoke<ArrayBuffer>({
-        uri: api.uri,
-        module: "query",
+    ): Promise<InvokeResult<ArrayBuffer>> => {
+      return invoke<ArrayBuffer>({
+        uri: wrapper.uri,
         method: "getFile",
         input: {
           path,

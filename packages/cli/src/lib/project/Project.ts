@@ -1,76 +1,64 @@
-import fs from "fs";
-import path from "path";
-import rimraf from "rimraf";
-import copyfiles from "copyfiles";
-import { TargetLanguage } from "@web3api/schema-bind";
+import {
+  intlMsg,
+  AnyManifest,
+  AnyManifestLanguage,
+  CacheDirectory,
+  CacheDirectoryConfig,
+} from "../";
+
+import { BindOutput } from "@polywrap/schema-bind";
+import { ComposerOutput } from "@polywrap/schema-compose";
 
 export interface ProjectConfig {
+  rootDir: string;
   quiet?: boolean;
 }
 
-export abstract class Project {
-  constructor(protected _config: ProjectConfig) {}
+export abstract class Project<TManifest extends AnyManifest> {
+  protected _cache: CacheDirectory;
 
-  public get quiet(): boolean {
-    return !!this._config.quiet;
+  constructor(protected _config: ProjectConfig, _cache: CacheDirectoryConfig) {
+    this._cache = new CacheDirectory(_cache);
   }
 
-  /// Cache (.w3 folder)
+  /// Validation
 
-  public getCacheDir(): string {
-    return path.join(this.getRootDir(), ".w3");
-  }
-
-  public readCacheFile(file: string): string | undefined {
-    const filePath = path.join(this.getCacheDir(), file);
-
-    if (!fs.existsSync(filePath)) {
-      return undefined;
+  public static validateManifestLanguage(
+    language: string | undefined,
+    manifestLanguages: Record<string, string>,
+    isManifestLanguage: (language: string) => boolean
+  ): void {
+    if (!language) {
+      throw Error(intlMsg.lib_project_language_not_found());
     }
 
-    return fs.readFileSync(filePath, "utf-8");
-  }
-
-  public removeCacheDir(subfolder: string): void {
-    const folderPath = path.join(this.getCacheDir(), subfolder);
-    rimraf.sync(folderPath);
-  }
-
-  public getCachePath(subpath: string): string {
-    return path.join(this.getCacheDir(), subpath);
-  }
-
-  public async copyFilesIntoCache(
-    destSubfolder: string,
-    sourceFolder: string
-  ): Promise<void> {
-    const dest = this.getCachePath(destSubfolder);
-
-    if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest, { recursive: true });
+    if (!isManifestLanguage(language)) {
+      throw Error(
+        intlMsg.lib_project_invalid_manifest_language({
+          language,
+          validTypes: Object.keys(manifestLanguages).join(", "),
+        })
+      );
     }
-
-    await new Promise<void>((resolve, reject) => {
-      copyfiles([sourceFolder, dest], { up: true }, (error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    });
   }
 
   /// Abstract Interface
+
   public abstract reset(): void;
 
-  public abstract getRootDir(): string;
+  public abstract validate(): Promise<void>;
 
-  public abstract getLanguage(): Promise<TargetLanguage>;
+  public abstract getName(): Promise<string>;
 
-  public abstract getSchemaNamedPaths(): Promise<{
-    [name: string]: string;
-  }>;
+  public abstract getManifest(): Promise<TManifest>;
+
+  public abstract getManifestDir(): string;
+
+  public abstract getManifestPath(): string;
+
+  public abstract getManifestLanguage(): Promise<AnyManifestLanguage>;
+
+  public abstract getSchemaNamedPath(): Promise<string>;
 
   public abstract getImportRedirects(): Promise<
     {
@@ -78,4 +66,13 @@ export abstract class Project {
       schema: string;
     }[]
   >;
+
+  public abstract generateSchemaBindings(
+    composerOutput: ComposerOutput,
+    generationSubPath?: string
+  ): Promise<BindOutput>;
+
+  public get quiet(): boolean {
+    return !!this._config.quiet;
+  }
 }

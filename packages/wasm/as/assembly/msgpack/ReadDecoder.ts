@@ -9,10 +9,13 @@ import {
   isFixedArray,
   isFixedString,
 } from "./Format";
-import { Nullable } from "./Nullable";
 import { Read } from "./Read";
-import { BigInt } from "../BigInt";
-import { Context } from "./Context";
+import { BigInt, BigNumber } from "../math";
+import { Context } from "../debug";
+import { JSON } from "../json";
+import { ExtensionType } from "./ExtensionType";
+
+import { Option } from "as-container";
 
 export class ReadDecoder extends Read {
   private readonly _context: Context;
@@ -130,6 +133,8 @@ export class ReadDecoder extends Read {
     const prefix = this._view.getUint8();
     if (isFloat64(prefix)) {
       return <f64>this._view.getFloat64();
+    } else if (isFloat32(prefix)) {
+      return <f64>this._view.getFloat32();
     }
     throw new Error(
       this._context.printWithContext(
@@ -209,6 +214,16 @@ export class ReadDecoder extends Read {
     return BigInt.fromString(str);
   }
 
+  readBigNumber(): BigNumber {
+    const str = this.readString();
+    return BigNumber.fromString(str);
+  }
+
+  readJSON(): JSON.Value {
+    const str = this.readString();
+    return JSON.parse(str);
+  }
+
   readArrayLength(): u32 {
     if (this.isNextNil()) {
       return 0;
@@ -283,67 +298,133 @@ export class ReadDecoder extends Read {
     return m;
   }
 
-  readNullableBool(): Nullable<bool> {
-    if (this.isNextNil()) {
-      return Nullable.fromNull<bool>();
+  readExtGenericMap<K, V>(
+    key_fn: (reader: Read) => K,
+    value_fn: (reader: Read) => V
+  ): Map<K, V> {
+    const leadByte = this._view.peekUint8();
+    let byteLength: u32;
+
+    if (isFixedMap(leadByte)) {
+      return this.readMap(key_fn, value_fn);
     }
-    return Nullable.fromValue<bool>(this.readBool());
+
+    switch (leadByte) {
+      case Format.FIXMAP:
+      case Format.MAP16:
+        return this.readMap(key_fn, value_fn);
+      case Format.FIXEXT1:
+        byteLength = 1;
+        break;
+      case Format.FIXEXT2:
+        byteLength = 2;
+        break;
+      case Format.FIXEXT4:
+        byteLength = 4;
+        break;
+      case Format.FIXEXT8:
+        byteLength = 8;
+        break;
+      case Format.FIXEXT16:
+        byteLength = 16;
+        break;
+      case Format.EXT8:
+        byteLength = <u32>this._view.getUint8();
+        break;
+      case Format.EXT16:
+        byteLength = <u32>this._view.getUint16();
+        break;
+      case Format.EXT32:
+        byteLength = this._view.getUint32();
+        break;
+      default:
+        throw new TypeError(
+          this._context.printWithContext(
+            "Property must be of type 'ext generic map'. " +
+              this._getErrorMessage(leadByte)
+          )
+        );
+    }
+
+    // Consule the leadByte
+    this._view.getUint8();
+
+    // Get the extension type
+    const extType = this._view.getUint8();
+
+    if (extType !== ExtensionType.GENERIC_MAP) {
+      throw new TypeError(
+        this._context.printWithContext(
+          "Extension must be of type 'ext generic map'. Found " +
+            extType.toString()
+        )
+      );
+    }
+
+    return this.readMap(key_fn, value_fn);
   }
 
-  readNullableInt8(): Nullable<i8> {
+  readNullableBool(): Option<bool> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<i8>();
+      return Option.None<bool>();
     }
-    return Nullable.fromValue<i8>(this.readInt8());
+    return Option.Some<bool>(this.readBool());
   }
 
-  readNullableInt16(): Nullable<i16> {
+  readNullableInt8(): Option<i8> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<i16>();
+      return Option.None<i8>();
     }
-    return Nullable.fromValue<i16>(this.readInt16());
+    return Option.Some<i8>(this.readInt8());
   }
 
-  readNullableInt32(): Nullable<i32> {
+  readNullableInt16(): Option<i16> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<i32>();
+      return Option.None<i16>();
     }
-    return Nullable.fromValue<i32>(this.readInt32());
+    return Option.Some<i16>(this.readInt16());
   }
 
-  readNullableUInt8(): Nullable<u8> {
+  readNullableInt32(): Option<i32> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<u8>();
+      return Option.None<i32>();
     }
-    return Nullable.fromValue<u8>(this.readUInt8());
+    return Option.Some<i32>(this.readInt32());
   }
 
-  readNullableUInt16(): Nullable<u16> {
+  readNullableUInt8(): Option<u8> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<u16>();
+      return Option.None<u8>();
     }
-    return Nullable.fromValue<u16>(this.readUInt16());
+    return Option.Some<u8>(this.readUInt8());
   }
 
-  readNullableUInt32(): Nullable<u32> {
+  readNullableUInt16(): Option<u16> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<u32>();
+      return Option.None<u16>();
     }
-    return Nullable.fromValue<u32>(this.readUInt32());
+    return Option.Some<u16>(this.readUInt16());
   }
 
-  readNullableFloat32(): Nullable<f32> {
+  readNullableUInt32(): Option<u32> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<f32>();
+      return Option.None<u32>();
     }
-    return Nullable.fromValue<f32>(this.readFloat32());
+    return Option.Some<u32>(this.readUInt32());
   }
 
-  readNullableFloat64(): Nullable<f64> {
+  readNullableFloat32(): Option<f32> {
     if (this.isNextNil()) {
-      return Nullable.fromNull<f64>();
+      return Option.None<f32>();
     }
-    return Nullable.fromValue<f64>(this.readFloat64());
+    return Option.Some<f32>(this.readFloat32());
+  }
+
+  readNullableFloat64(): Option<f64> {
+    if (this.isNextNil()) {
+      return Option.None<f64>();
+    }
+    return Option.Some<f64>(this.readFloat64());
   }
 
   readNullableString(): string | null {
@@ -367,6 +448,21 @@ export class ReadDecoder extends Read {
     return this.readBigInt();
   }
 
+  readNullableBigNumber(): BigNumber | null {
+    if (this.isNextNil()) {
+      return null;
+    }
+    return this.readBigNumber();
+  }
+
+  readNullableJSON(): JSON.Value | null {
+    if (this.isNextNil()) {
+      return null;
+    }
+
+    return this.readJSON();
+  }
+
   readNullableArray<T>(fn: (decoder: Read) => T): Array<T> | null {
     if (this.isNextNil()) {
       return null;
@@ -382,6 +478,16 @@ export class ReadDecoder extends Read {
       return null;
     }
     return this.readMap(key_fn, value_fn);
+  }
+
+  readNullableExtGenericMap<K, V>(
+    key_fn: (decoder: Read) => K,
+    value_fn: (decoder: Read) => V
+  ): Map<K, V> | null {
+    if (this.isNextNil()) {
+      return null;
+    }
+    return this.readExtGenericMap(key_fn, value_fn);
   }
 
   isNextNil(): bool {
@@ -421,6 +527,23 @@ export class ReadDecoder extends Read {
         return i64(this._view.getInt32());
       case Format.INT64:
         return this._view.getInt64();
+      case Format.UINT8:
+        return i64(this._view.getUint8());
+      case Format.UINT16:
+        return i64(this._view.getUint16());
+      case Format.UINT32:
+        return i64(this._view.getUint32());
+      case Format.UINT64: {
+        const value = this._view.getUint64();
+        if (value <= u64(i64.MAX_VALUE)) {
+          return i64(value);
+        }
+        throw new RangeError(
+          this._context.printWithContext(
+            "integer overflow: value = " + value.toString() + "; bits = 64"
+          )
+        );
+      }
       default:
         throw new TypeError(
           this._context.printWithContext(
@@ -438,7 +561,8 @@ export class ReadDecoder extends Read {
     } else if (isNegativeFixedInt(prefix)) {
       throw new RangeError(
         this._context.printWithContext(
-          "unsigned integer cannot be negative: prefix = " + prefix.toString()
+          "unsigned integer cannot be negative. " +
+            this._getErrorMessage(prefix)
         )
       );
     }
@@ -452,6 +576,54 @@ export class ReadDecoder extends Read {
         return u64(this._view.getUint32());
       case Format.UINT64:
         return this._view.getUint64();
+      case Format.INT8: {
+        const int8 = this._view.getInt8();
+        if (int8 >= 0) {
+          return u64(int8);
+        }
+        throw new RangeError(
+          this._context.printWithContext(
+            "unsigned integer cannot be negative. " +
+              this._getErrorMessage(prefix)
+          )
+        );
+      }
+      case Format.INT16: {
+        const int16 = this._view.getInt16();
+        if (int16 >= 0) {
+          return u64(int16);
+        }
+        throw new RangeError(
+          this._context.printWithContext(
+            "unsigned integer cannot be negative. " +
+              this._getErrorMessage(prefix)
+          )
+        );
+      }
+      case Format.INT32: {
+        const int32 = this._view.getInt32();
+        if (int32 >= 0) {
+          return u64(int32);
+        }
+        throw new RangeError(
+          this._context.printWithContext(
+            "unsigned integer cannot be negative. " +
+              this._getErrorMessage(prefix)
+          )
+        );
+      }
+      case Format.INT64: {
+        const int64 = this._view.getInt64();
+        if (int64 >= 0) {
+          return u64(int64);
+        }
+        throw new RangeError(
+          this._context.printWithContext(
+            "unsigned integer cannot be negative. " +
+              this._getErrorMessage(prefix)
+          )
+        );
+      }
       default:
         throw new TypeError(
           this._context.printWithContext(
@@ -459,128 +631,6 @@ export class ReadDecoder extends Read {
           )
         );
     }
-  }
-
-  private _skip(): void {
-    // getSize handles discarding 'msgpack header' info
-    let numberOfObjectsToDiscard = this._getSize();
-
-    while (numberOfObjectsToDiscard > 0) {
-      this._getSize(); // discard next object
-      numberOfObjectsToDiscard--;
-    }
-  }
-
-  private _getSize(): i32 {
-    const leadByte = this._view.getUint8(); // will discard one
-    let objectsToDiscard = <i32>0;
-    // Handled for fixed values
-    if (isNegativeFixedInt(leadByte)) {
-      // noop, will just discard the leadbyte
-    } else if (isFixedInt(leadByte)) {
-      // noop, will just discard the leadbyte
-    } else if (isFixedString(leadByte)) {
-      const strLength = leadByte & 0x1f;
-      this._view.discard(strLength);
-    } else if (isFixedArray(leadByte)) {
-      objectsToDiscard = <i32>(leadByte & Format.FOUR_LEAST_SIG_BITS_IN_BYTE);
-    } else if (isFixedMap(leadByte)) {
-      objectsToDiscard =
-        2 * <i32>(leadByte & Format.FOUR_LEAST_SIG_BITS_IN_BYTE);
-    } else {
-      switch (leadByte) {
-        case Format.NIL:
-          break;
-        case Format.TRUE:
-          break;
-        case Format.FALSE:
-          break;
-        case Format.BIN8:
-          this._view.discard(<i32>this._view.getUint8());
-          break;
-        case Format.BIN16:
-          this._view.discard(<i32>this._view.getUint16());
-          break;
-        case Format.BIN32:
-          this._view.discard(<i32>this._view.getUint32());
-          break;
-        case Format.FLOAT32:
-          this._view.discard(4);
-          break;
-        case Format.FLOAT64:
-          this._view.discard(8);
-          break;
-        case Format.UINT8:
-          this._view.discard(1);
-          break;
-        case Format.UINT16:
-          this._view.discard(2);
-          break;
-        case Format.UINT32:
-          this._view.discard(4);
-          break;
-        case Format.UINT64:
-          this._view.discard(8);
-          break;
-        case Format.INT8:
-          this._view.discard(1);
-          break;
-        case Format.INT16:
-          this._view.discard(2);
-          break;
-        case Format.INT32:
-          this._view.discard(4);
-          break;
-        case Format.INT64:
-          this._view.discard(8);
-          break;
-        case Format.FIXEXT1:
-          this._view.discard(2);
-          break;
-        case Format.FIXEXT2:
-          this._view.discard(3);
-          break;
-        case Format.FIXEXT4:
-          this._view.discard(5);
-          break;
-        case Format.FIXEXT8:
-          this._view.discard(9);
-          break;
-        case Format.FIXEXT16:
-          this._view.discard(17);
-          break;
-        case Format.STR8:
-          this._view.discard(this._view.getUint8());
-          break;
-        case Format.STR16:
-          this._view.discard(this._view.getUint16());
-          break;
-        case Format.STR32:
-          this._view.discard(this._view.getUint32());
-          break;
-        case Format.ARRAY16:
-          objectsToDiscard = <i32>this._view.getUint16();
-          break;
-        case Format.ARRAY32:
-          objectsToDiscard = <i32>this._view.getUint32();
-          break;
-        case Format.MAP16:
-          objectsToDiscard = 2 * <i32>this._view.getUint16();
-          break;
-        case Format.MAP32:
-          objectsToDiscard = 2 * <i32>this._view.getUint32();
-          break;
-        default:
-          throw new TypeError(
-            this._context.printWithContext(
-              "invalid prefix; cannot get size due to bad encoding for value: " +
-                leadByte.toString()
-            )
-          );
-      }
-    }
-
-    return objectsToDiscard;
   }
 
   // eslint-disable-next-line @typescript-eslint/naming-convention

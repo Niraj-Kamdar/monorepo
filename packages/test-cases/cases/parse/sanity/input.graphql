@@ -8,6 +8,9 @@ scalar Int16
 scalar Int32
 scalar Bytes
 scalar BigInt
+scalar BigNumber
+scalar JSON
+scalar Map
 
 directive @imported(
   uri: String!
@@ -18,6 +21,16 @@ directive @imported(
 directive @imports(
   types: [String!]!
 ) on OBJECT
+
+directive @capability(
+  type: String!
+  uri: String!
+  namespace: String!
+) repeatable on OBJECT
+
+directive @enabled_interface on OBJECT
+
+directive @annotate(type: String!) on FIELD
 
 """
 CustomEnum comment
@@ -51,6 +64,10 @@ optStr comment
   i32: Int32!
   bigint: BigInt!
   optBigint: BigInt
+  bignumber: BigNumber!
+  optBignumber: BigNumber
+  json: JSON!
+  optJson: JSON
   bytes: Bytes!
   uArray: [UInt!]!
   uOptArray: [UInt!]
@@ -67,7 +84,8 @@ optStr comment
   optEnum: CustomEnum
   enum: CustomEnum!
   enumArray: [CustomEnum!]!,
-  optEnumArray: [CustomEnum]
+  optEnumArray: [CustomEnum],
+  map1: Map @annotate(type: "Map<String, Int>")
 }
 
 """
@@ -88,6 +106,22 @@ type UserObject {
   fieldB: Int!
 }
 
+type UserObjectFromInterface implements UserObject {
+  fieldA: String
+  fieldB: Int!
+  fieldC: UInt32!
+}
+
+type Env {
+  prop: String!
+  propM: Int!
+}
+
+type ClientEnv {
+  prop: String!
+  propM: String
+}
+
 """
 ImplementationObject comment
 """
@@ -101,16 +135,25 @@ anotherProp comment
   str2: String!
 }
 
+type ModuleObjectType {
+  prop: String!
+}
+
 """
-Query comment
+Module comment
 """
-type Query implements Interface_Query @imports(
-  types: [ "TestImport_Query", "Interface_Query" ]
+type Module implements Interface_Module @imports(
+  types: [ "TestImport_Module", "Interface_Module" ]
+) @capability(
+  type: "getImplementations",
+  uri: "testimport.uri.eth",
+  namespace: "TestImport",
 ) {
+  sanitizeEnv(env: ClientEnv!): Env!
 """
-queryMethod comment
+moduleMethod comment
 """
-  queryMethod(
+  moduleMethod(
 """
 arg comment
 """
@@ -148,16 +191,20 @@ abstractMethod comment
   abstractMethod(
     arg: UInt8!
   ): String!
+
+  transformMap(
+    map: Map @annotate(type: "Map<String!, Int!>")
+  ): Map @annotate(type: "Map<String!, Int!>")
 }
 
 """
-TestImport_Query comment
+TestImport_Module comment
 """
-type TestImport_Query @imported(
+type TestImport_Module @imported(
   uri: "testimport.uri.eth",
   namespace: "TestImport",
-  nativeType: "Query"
-) {
+  nativeType: "Module"
+) @enabled_interface {
 """
 importedMethod comment
 """
@@ -184,25 +231,6 @@ uArrayArray comment
     enum: TestImport_Enum!
     optEnum: TestImport_Enum
   ): TestImport_Enum!
-}
-
-"""
-TestImport_Mutation comment
-"""
-type TestImport_Mutation @imported(
-  uri: "testimport.uri.eth",
-  namespace: "TestImport",
-  nativeType: "Mutation"
-) {
-"""
-importedMethod comment
-"""
-  importedMethod(
-"""
-str comment
-"""
-    str: String!
-  ): String!
 }
 
 """
@@ -251,12 +279,12 @@ enum TestImport_Enum @imported(
 }
 
 """
-Interface_Query comment
+Interface_Module comment
 """
-type Interface_Query @imported(
+type Interface_Module @imported(
   uri: "interface.uri.eth",
   namespace: "Interface",
-  nativeType: "Query"
+  nativeType: "Module"
 ) {
 """
 abstractMethod comment

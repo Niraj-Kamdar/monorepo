@@ -1,8 +1,11 @@
 {
-  "name": "@web3api/test-cases",
-  "description": "Reusable Web3API Test Cases",
+  "name": "@polywrap/test-cases",
+  "description": "Reusable Polywrap Test Cases",
   "private": true,
-  "version": "0.0.1-prealpha.37",
+  "version": "0.0.1-prealpha.89",
   "license": "MIT",
-  "main": "index.ts"
+  "main": "index.ts",
+  "dependencies": {
+    "@polywrap/os-js": "0.0.1-prealpha.89"
+  }
 }

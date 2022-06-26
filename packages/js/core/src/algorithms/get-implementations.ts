@@ -1,14 +1,14 @@
 import { Uri, UriRedirect, InterfaceImplementations } from "../types";
 import { applyRedirects } from "./apply-redirects";
 
-import { Tracer } from "@web3api/tracing-js";
+import { Tracer } from "@polywrap/tracing-js";
 
 export const getImplementations = Tracer.traceFunc(
   "core: getImplementations",
   (
-    apiInterfaceUri: Uri,
-    redirects: readonly UriRedirect<Uri>[],
-    interfaces: readonly InterfaceImplementations<Uri>[]
+    wrapperInterfaceUri: Uri,
+    interfaces: readonly InterfaceImplementations<Uri>[],
+    redirects?: readonly UriRedirect<Uri>[]
   ): Uri[] => {
     const result: Uri[] = [];
 
@@ -21,15 +21,14 @@ export const getImplementations = Tracer.traceFunc(
 
     const addAllImplementationsFromImplementationsArray = (
       implementationsArray: readonly InterfaceImplementations<Uri>[],
-      apiInterfaceUri: Uri
+      wrapperInterfaceUri: Uri
     ) => {
       for (const interfaceImplementations of implementationsArray) {
-        const fullyResolvedUri = applyRedirects(
-          interfaceImplementations.interface,
-          redirects
-        );
+        const fullyResolvedUri = redirects
+          ? applyRedirects(interfaceImplementations.interface, redirects)
+          : interfaceImplementations.interface;
 
-        if (Uri.equals(fullyResolvedUri, apiInterfaceUri)) {
+        if (Uri.equals(fullyResolvedUri, wrapperInterfaceUri)) {
           for (const implementation of interfaceImplementations.implementations) {
             addUniqueResult(implementation);
           }
@@ -37,15 +36,13 @@ export const getImplementations = Tracer.traceFunc(
       }
     };
 
-    const finalRedirectedApiInterface = applyRedirects(
-      apiInterfaceUri,
-      redirects
-    );
+    let finalUri = wrapperInterfaceUri;
 
-    addAllImplementationsFromImplementationsArray(
-      interfaces,
-      finalRedirectedApiInterface
-    );
+    if (redirects) {
+      finalUri = applyRedirects(wrapperInterfaceUri, redirects);
+    }
+
+    addAllImplementationsFromImplementationsArray(interfaces, finalUri);
 
     return result;
   }

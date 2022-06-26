@@ -1,7 +1,10 @@
-import { Web3ApiClient } from "@web3api/client-js"
 import { httpPlugin } from "../..";
-import { Response } from "../../w3";
-import nock from "nock"
+import { Response } from "../../wrap";
+
+import { PolywrapClient } from "@polywrap/client-js"
+import nock from "nock";
+
+jest.setTimeout(360000)
 
 const defaultReplyHeaders = {
   'access-control-allow-origin': '*',
@@ -9,14 +12,14 @@ const defaultReplyHeaders = {
 }
 
 describe("e2e tests for HttpPlugin", () => {
-  let web3ApiClient: Web3ApiClient;
+  let polywrapClient: PolywrapClient;
 
   beforeEach(() => {
-    web3ApiClient = new Web3ApiClient({
+    polywrapClient = new PolywrapClient({
       plugins: [
         {
-          uri: "w3://ens/http.web3api.eth",
-          plugin: httpPlugin(),
+          uri: "wrap://ens/http.polywrap.eth",
+          plugin: httpPlugin({ }),
         },
       ]
     });
@@ -30,8 +33,8 @@ describe("e2e tests for HttpPlugin", () => {
         .get("/api")
         .reply(200, '{data: "test-response"}')
 
-      const response = await web3ApiClient.query<{ get: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ get: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             get(
@@ -58,8 +61,8 @@ describe("e2e tests for HttpPlugin", () => {
         .get("/api")
         .reply(200, '{data: "test-response"}')
 
-      const response = await web3ApiClient.query<{ get: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ get: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             get(
@@ -87,8 +90,8 @@ describe("e2e tests for HttpPlugin", () => {
         .query({ query: "foo" })
         .reply(200, '{data: "test-response"}', { 'X-Response-Header': "resp-foo" })
 
-      const response = await web3ApiClient.query<{ get: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ get: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             get(
@@ -121,8 +124,8 @@ describe("e2e tests for HttpPlugin", () => {
         .get("/api")
         .reply(404)
 
-      const response = await web3ApiClient.query<{ get: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ get: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             get(
@@ -143,14 +146,56 @@ describe("e2e tests for HttpPlugin", () => {
 
   describe("post method", () => {
 
+    test("succesfull request with request type as application/json", async () => {
+      const reqPayload = {
+        data: "test-request",
+      };
+      const reqPayloadStringified = JSON.stringify(reqPayload);
+      
+      const resPayload = {
+        data: "test-response"
+      };
+      const resPayloadStringfified = JSON.stringify(resPayload);
+
+      nock("http://www.example.com")
+          .defaultReplyHeaders(defaultReplyHeaders)
+          .post("/api", reqPayloadStringified)
+          .reply(200, resPayloadStringfified)
+
+      const response = await polywrapClient.query<{ post: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
+        query: `
+          query {
+            post(
+              url: "http://www.example.com/api"
+              request: {
+                headers: [
+                  { key: "Content-Type", value: "application/json" },
+                ],
+                responseType: TEXT
+                body: "{\\"data\\":\\"test-request\\"}"
+              }
+            )
+          }
+        `
+      })
+
+      expect(response.data).toBeDefined()
+      expect(response.errors).toBeUndefined()
+      expect(response.data?.post.status).toBe(200)
+      // expect(response.data?.get.statusText).toBe("OK")
+      expect(response.data?.post.body).toBe(resPayloadStringfified)
+      expect(response.data?.post.headers?.length).toEqual(2) // default reply headers
+    });
+
     test("succesfull request with response type as TEXT", async () => {
       nock("http://www.example.com")
         .defaultReplyHeaders(defaultReplyHeaders)
         .post("/api", "{data: 'test-request'}")
         .reply(200, '{data: "test-response"}')
 
-      const response = await web3ApiClient.query<{ post: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ post: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             post(
@@ -178,8 +223,8 @@ describe("e2e tests for HttpPlugin", () => {
         .post("/api", "{data: 'test-request'}")
         .reply(200, '{data: "test-response"}')
 
-      const response = await web3ApiClient.query<{ post: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ post: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             post(
@@ -208,8 +253,8 @@ describe("e2e tests for HttpPlugin", () => {
         .query({ query: "foo" })
         .reply(200, '{data: "test-response"}', { 'X-Response-Header': "resp-foo" })
 
-      const response = await web3ApiClient.query<{ post: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ post: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             post(
@@ -243,8 +288,8 @@ describe("e2e tests for HttpPlugin", () => {
         .post("/api")
         .reply(404)
 
-      const response = await web3ApiClient.query<{ get: Response }>({
-        uri: "w3://ens/http.web3api.eth",
+      const response = await polywrapClient.query<{ get: Response }>({
+        uri: "wrap://ens/http.polywrap.eth",
         query: `
           query {
             post(
@@ -261,6 +306,5 @@ describe("e2e tests for HttpPlugin", () => {
       expect(response.errors).toBeDefined()
     });
 
-  })
-
+  });
 });

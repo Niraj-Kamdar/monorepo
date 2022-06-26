@@ -1,19 +1,8 @@
-import { Uri, InvokeApiOptions } from "./";
+import { Uri, InvokeOptions, ClientConfig } from "./";
 
-import { Tracer } from "@web3api/tracing-js";
-import { DocumentNode, parse } from "graphql";
+import { Tracer } from "@polywrap/tracing-js";
+import { DocumentNode } from "graphql";
 import gql from "graphql-tag";
-
-/** GraphQL SchemaDocument */
-export type SchemaDocument = DocumentNode;
-
-/** Create a GraphQL SchemaDocument by parsing a string */
-export const createSchemaDocument = Tracer.traceFunc(
-  "core: createSchemaDocument",
-  (schema: string): SchemaDocument => {
-    return parse(schema);
-  }
-);
 
 /** GraphQL QueryDocument */
 export type QueryDocument = DocumentNode;
@@ -26,17 +15,18 @@ export const createQueryDocument = Tracer.traceFunc(
   }
 );
 
-/** Options required for an API query. */
-export interface QueryApiOptions<
+/** Options required for an Wrapper query. */
+export interface QueryOptions<
   TVariables extends Record<string, unknown> = Record<string, unknown>,
-  TUri = Uri
+  TUri extends Uri | string = string,
+  TClientConfig extends ClientConfig = ClientConfig
 > {
-  /** The API's URI */
+  /** The Wrapper's URI */
   uri: TUri;
 
   /**
    * The GraphQL query to parse and execute, leading to one or more
-   * API invocations.
+   * Wrapper invocations.
    */
   query: string | QueryDocument;
 
@@ -44,20 +34,30 @@ export interface QueryApiOptions<
    * Variables referenced within the query string via GraphQL's '$variable' syntax.
    */
   variables?: TVariables;
+
+  /**
+   * Override the client's config for all invokes within this query.
+   */
+  config?: Partial<TClientConfig>;
+
+  /**
+   * Query id used to track query context data set internally.
+   */
+  contextId?: string;
 }
 
 /**
- * The result of an API query, which is the aggregate
- * of one or more [[InvokeApiResult | invocation results]].
+ * The result of an Wrapper query, which is the aggregate
+ * of one or more [[InvokeResult | invocation results]].
  *
  * @template TData Type of the query result data.
  */
-export interface QueryApiResult<
+export interface QueryResult<
   TData extends Record<string, unknown> = Record<string, unknown>
 > {
   /**
    * Query result data. The type of this value is a named map,
-   * where the key is the method's name, and value is the [[InvokeApiResult]]'s data.
+   * where the key is the method's name, and value is the [[InvokeResult]]'s data.
    * This is done to allow for parallel invocations within a
    * single query document. In case of method name collisions,
    * a postfix of `_0` will be applied, where 0 will be incremented for
@@ -65,31 +65,23 @@ export interface QueryApiResult<
    * Errors should be populated with information as to what happened.
    * Null is used to represent an intentionally null result.
    */
-  // TODO: is it correct to have this optionally undefined? Should it instead be { } for "undefined" cases?
-  //       axios follows this pattern, does GraphQL/Apollo?
   data?: TData;
 
   /** Errors encountered during the query. */
   errors?: Error[];
 }
 
-export interface QueryApiInvocations {
-  [methodOrAlias: string]: InvokeApiOptions;
+export interface QueryInvocations<TUri extends Uri | string = string> {
+  [methodOrAlias: string]: InvokeOptions<TUri>;
 }
 
 /** A type that can parse & execute a given query */
 export interface QueryHandler {
   query<
     TData extends Record<string, unknown> = Record<string, unknown>,
-    TVariables extends Record<string, unknown> = Record<string, unknown>
+    TVariables extends Record<string, unknown> = Record<string, unknown>,
+    TUri extends Uri | string = string
   >(
-    options: QueryApiOptions<TVariables, string>
-  ): Promise<QueryApiResult<TData>>;
-
-  query<
-    TData extends Record<string, unknown> = Record<string, unknown>,
-    TVariables extends Record<string, unknown> = Record<string, unknown>
-  >(
-    options: QueryApiOptions<TVariables, Uri>
-  ): Promise<QueryApiResult<TData>>;
+    options: QueryOptions<TVariables, TUri>
+  ): Promise<QueryResult<TData>>;
 }

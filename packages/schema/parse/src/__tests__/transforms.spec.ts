@@ -7,12 +7,13 @@ import {
   ObjectDefinition,
   PropertyDefinition,
   TypeInfo,
-  createQueryDefinition,
-  QueryDefinition,
+  createModuleDefinition,
+  ModuleDefinition,
   createMethodDefinition,
   MethodDefinition,
-  createImportedQueryDefinition,
-  ImportedQueryDefinition
+  createImportedModuleDefinition,
+  ImportedModuleDefinition,
+  createEnvDefinition
 } from "../typeInfo";
 
 const schema1 = `
@@ -25,7 +26,7 @@ type AnotherType {
   prop: String!
 }
 
-type Query {
+type Module {
   method1(
     arg1: String!
     arg2: String
@@ -41,18 +42,10 @@ type Query {
   ): Boolean
 }
 
-type Mutation {
-  method1(
-    arg1: String!
-    arg2: String
-    arg3: Boolean
-  ): String!
-}
-
-type TestImport_Query @imported(
+type TestImport_Module @imported(
   uri: "testimport.uri.eth",
   namespace: "TestImport",
-  nativeType: "Query"
+  nativeType: "Module"
 ) {
   importedMethod(
     str: String!
@@ -75,14 +68,16 @@ type AnotherType {
 }
 `;
 
-describe("Web3API Schema TypeInfo Transformations", () => {
+describe("Polywrap Schema TypeInfo Transformations", () => {
   it("addFirstLast", () => {
     const typeInfo = parseSchema(schema1, {
       transforms: [addFirstLast],
     });
     const expected: TypeInfo = {
+      envType: createEnvDefinition({}),
       enumTypes: [],
       importedEnumTypes: [],
+      interfaceTypes: [],
       objectTypes: [
         {
           ...createObjectDefinition({ type: "MyType" }),
@@ -126,13 +121,12 @@ describe("Web3API Schema TypeInfo Transformations", () => {
           last: true,
         } as ObjectDefinition,
       ],
-      queryTypes: [
+      moduleType: 
         {
-          ...createQueryDefinition({ type: "Query" }),
+          ...createModuleDefinition({}),
           methods: [
             {
               ...createMethodDefinition({
-                type: "query",
                 name: "method1",
                 arguments: [
                   {
@@ -144,11 +138,15 @@ describe("Web3API Schema TypeInfo Transformations", () => {
                     first: true,
                     last: null
                   } as PropertyDefinition,
-                  createScalarPropertyDefinition({
-                    type: "String",
-                    name: "arg2",
-                    required: false,
-                  }),
+                  {
+                    ...createScalarPropertyDefinition({
+                      type: "String",
+                      name: "arg2",
+                      required: false,
+                    }),
+                    first: null,
+                    last: null
+                  } as PropertyDefinition,
                   {
                     ...createScalarPropertyDefinition({
                       type: "Boolean",
@@ -168,28 +166,30 @@ describe("Web3API Schema TypeInfo Transformations", () => {
               first: true,
               last: null
             } as MethodDefinition,
-            createMethodDefinition({
-              type: "query",
-              name: "method2",
-              arguments: [
-                {
-                  ...createScalarPropertyDefinition({
-                    type: "String",
-                    name: "arg1",
-                    required: true,
-                  }),
-                  first: true,
-                  last: true
-                } as PropertyDefinition,
-              ],
-              return: createScalarPropertyDefinition({
-                type: "String",
-                name: "method2"
-              })
-            }),
             {
               ...createMethodDefinition({
-                type: "query",
+                name: "method2",
+                arguments: [
+                  {
+                    ...createScalarPropertyDefinition({
+                      type: "String",
+                      name: "arg1",
+                      required: true,
+                    }),
+                    first: true,
+                    last: true
+                  } as PropertyDefinition,
+                ],
+                return: createScalarPropertyDefinition({
+                  type: "String",
+                  name: "method2"
+                })
+              }),
+              first: null,
+              last: null
+            },
+            {
+              ...createMethodDefinition({
                 name: "method3",
                 arguments: [
                   {
@@ -212,68 +212,19 @@ describe("Web3API Schema TypeInfo Transformations", () => {
               last: true
             } as MethodDefinition,
           ],
-          first: true,
-          last: null
-        } as QueryDefinition,
-        {
-          ...createQueryDefinition({ type: "Mutation" }),
-          methods: [
-            {
-              ...createMethodDefinition({
-                type: "mutation",
-                name: "method1",
-                arguments: [
-                  {
-                    ...createScalarPropertyDefinition({
-                      type: "String",
-                      name: "arg1",
-                      required: true,
-                    }),
-                    first: true,
-                    last: null
-                  } as PropertyDefinition,
-                  createScalarPropertyDefinition({
-                    type: "String",
-                    name: "arg2",
-                    required: false,
-                  }),
-                  {
-                    ...createScalarPropertyDefinition({
-                      type: "Boolean",
-                      name: "arg3",
-                      required: false,
-                    }),
-                    first: null,
-                    last: true
-                  } as PropertyDefinition,
-                ],
-                return: createScalarPropertyDefinition({
-                  type: "String",
-                  name: "method1",
-                  required: true
-                })
-              }),
-              first: true,
-              last: true
-            } as MethodDefinition,
-          ],
-          first: null,
-          last: true
-        } as QueryDefinition,
-      ],
+        } as ModuleDefinition,
       importedObjectTypes: [],
-      importedQueryTypes: [
+      importedModuleTypes: [
         {
-          ...createImportedQueryDefinition({
+          ...createImportedModuleDefinition({
             uri: "testimport.uri.eth",
             namespace: "TestImport",
-            nativeType: "Query",
-            type: "TestImport_Query"
+            nativeType: "Module",
+            isInterface: false,
           }),
           methods: [
             {
               ...createMethodDefinition({
-                type: "query",
                 name: "importedMethod",
                 arguments: [
                   {
@@ -297,7 +248,6 @@ describe("Web3API Schema TypeInfo Transformations", () => {
             } as MethodDefinition,
             {
               ...createMethodDefinition({
-                type: "query",
                 name: "anotherMethod",
                 arguments: [
                   {
@@ -322,7 +272,7 @@ describe("Web3API Schema TypeInfo Transformations", () => {
           ],
           first: true,
           last: true
-        } as ImportedQueryDefinition,
+        } as ImportedModuleDefinition,
       ],
     };
 
@@ -338,7 +288,9 @@ describe("Web3API Schema TypeInfo Transformations", () => {
       ],
     });
     const expected: TypeInfo = {
+      envType: createEnvDefinition({}),
       enumTypes: [],
+      interfaceTypes: [],
       importedEnumTypes: [],
       objectTypes: [
         {
@@ -378,9 +330,8 @@ describe("Web3API Schema TypeInfo Transformations", () => {
           foo: "bar",
         } as ObjectDefinition,
       ],
-      queryTypes: [],
       importedObjectTypes: [],
-      importedQueryTypes: [],
+      importedModuleTypes: [],
     };
 
     expect(typeInfo).toMatchObject(expected);

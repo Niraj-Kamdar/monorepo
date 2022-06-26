@@ -1,11 +1,45 @@
-import { ExternalImport, LocalImport, SYNTAX_REFERENCE } from "./types";
+import { ExternalImport, LocalImport, SYNTAX_REFERENCE, Use } from "./types";
 import { getDuplicates } from "./utils";
 
 import Path from "path";
+import { CapabilityType } from "@polywrap/schema-parse";
+
+export function parseUse(useStatements: RegExpMatchArray[]): Use[] {
+  const uses: Use[] = [];
+
+  for (const useStatement of useStatements) {
+    if (useStatement.length !== 3) {
+      throw Error(
+        `Invalid use statement found:\n${useStatement[0]}\n` +
+          `Please use the following syntax...\n${SYNTAX_REFERENCE}`
+      );
+    }
+
+    const usedTypes = useStatement[1]
+      .split(",")
+      .map((str) => str.replace(/\s+/g, "")) // Trim all whitespace
+      .filter(Boolean); // Remove empty strings
+
+    const useForName = useStatement[2];
+
+    // Make sure the developer does not import the same dependency more than once
+    const duplicateUsedTypes = getDuplicates(usedTypes);
+    if (duplicateUsedTypes.length > 0) {
+      throw Error(
+        `Duplicate type found: ${duplicateUsedTypes} \nIn Use: ${useForName}`
+      );
+    }
+
+    uses.push({
+      usedTypes: usedTypes as CapabilityType[],
+      namespace: useForName,
+    });
+  }
+  return uses;
+}
 
 export function parseExternalImports(
-  imports: RegExpMatchArray[],
-  mutation: boolean
+  imports: RegExpMatchArray[]
 ): ExternalImport[] {
   const externalImports: ExternalImport[] = [];
 
@@ -19,8 +53,10 @@ export function parseExternalImports(
 
     const importedTypes = importStatement[1]
       .split(",")
-      .map((str) => str.replace(/\s+/g, "")) // Trim all whitespace
-      .filter(Boolean); // Remove empty strings
+      // Trim all whitespace and brackets
+      .map((str) => str.replace(/(\s+|\{|\})/g, ""))
+      // Remove empty strings
+      .filter(Boolean);
 
     const importFromName = importStatement[3];
 
@@ -42,12 +78,6 @@ export function parseExternalImports(
 
     const namespace = importStatement[2];
     const uri = importStatement[3];
-
-    if (!mutation && importedTypes.indexOf("Mutation") > -1) {
-      throw Error(
-        `Query modules cannot import Mutations, write operations are prohibited.\nSee import statement for namespace "${namespace}" at uri "${uri}"`
-      );
-    }
 
     externalImports.push({
       importedTypes,
@@ -100,8 +130,10 @@ export function parseLocalImports(
 
     const importTypes = importStatement[1]
       .split(",")
-      .map((str) => str.replace(/\s+/g, "")) // Trim all whitespace
-      .filter(Boolean); // Remove empty strings
+      // Trim all whitespace and brackets
+      .map((str) => str.replace(/(\s+|\{|\})/g, ""))
+      // Remove empty strings
+      .filter(Boolean);
     const importPath = importStatement[2];
     const path = Path.join(Path.dirname(schemaPath), importPath);
 
@@ -109,7 +141,7 @@ export function parseLocalImports(
     const index = importTypes.findIndex((str) => str.indexOf("_") > -1);
     if (index > -1) {
       throw Error(
-        `User defined types with '_' in their name are forbidden. This is used for Web3API import namespacing.`
+        `User defined types with '_' in their name are forbidden. This is used for Polywrap import namespacing.`
       );
     }
 

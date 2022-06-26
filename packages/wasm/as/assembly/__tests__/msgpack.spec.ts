@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 
 import {
-  Nullable,
   Read,
   ReadDecoder,
   Write,
   WriteEncoder,
   WriteSizer,
+  JSON,
+  BigInt,
+  BigNumber,
 } from "../";
+import { Option } from "as-container";
 
 class Sanity {
   nil: string | null = "null";
@@ -18,11 +21,14 @@ class Sanity {
   uint16: u16;
   uint32: u32;
   boolean: bool;
-  optUint32: Nullable<u32> = new Nullable<u32>();
-  optBool: Nullable<bool> = new Nullable<bool>();
+  optUint32: Option<u32> = Option.None<u32>();
+  optBool: Option<bool> = Option.None<bool>();
   float32: f32;
   float64: f64;
   str: string = "";
+  bigint: BigInt = BigInt.ONE;
+  bignumber: BigNumber = BigNumber.ONE;
+  json: JSON.Value = JSON.Value.Object();
   largeStr: string = "";
   bytes: ArrayBuffer = new ArrayBuffer(1);
   largeBytes: ArrayBuffer = new ArrayBuffer(1);
@@ -32,7 +38,7 @@ class Sanity {
   map: Map<string, Array<i32>> = new Map<string, Array<i32>>();
 
   init(): void {
-    const largeString = new Array<string>(10000).join("web3api ");
+    const largeString = new Array<string>(10000).join("polywrap ");
     const largeBytes = String.UTF8.encode(largeString);
 
     this.nil = null;
@@ -43,12 +49,15 @@ class Sanity {
     this.uint16 = 65535;
     this.uint32 = 4294967295;
     this.boolean = true;
-    this.optUint32 = Nullable.fromValue<u32>(234234234);
-    this.optBool = Nullable.fromValue<bool>(true);
+    this.optUint32 = Option.Some<u32>(234234234);
+    this.optBool = Option.Some<bool>(true);
     this.float32 = 3.40282344818115234375;
     this.float64 = 3124124512.598273468017578125;
     this.str = "Hello, world!";
-    this.largeStr = new Array<string>(10).join("web3api ");
+    this.bigint = BigInt.fromString("3124124512598273468017578125");
+    this.bignumber = BigNumber.fromString("3124124512.598273468017578125");
+    this.json = JSON.parse(`{"foo": "bar", "bar": "baz"}`);
+    this.largeStr = new Array<string>(10).join("polywrap ");
     this.bytes = new ArrayBuffer(12);
     this.largeBytes = largeBytes;
     this.array = [10, 20, 30];
@@ -68,7 +77,7 @@ class Sanity {
     const sizer = new WriteSizer();
     serializeSanity(sizer, this);
     const buffer = new ArrayBuffer(sizer.length);
-    const encoder = new WriteEncoder(buffer);
+    const encoder = new WriteEncoder(buffer, sizer);
     serializeSanity(encoder, this);
     return buffer;
   }
@@ -90,7 +99,7 @@ class Sanity {
 }
 
 function serializeSanity(writer: Write, type: Sanity): void {
-  writer.writeMapLength(20);
+  writer.writeMapLength(23);
   writer.writeString("nil");
   writer.writeNullableString(type.nil);
   writer.writeString("int8");
@@ -123,6 +132,12 @@ function serializeSanity(writer: Write, type: Sanity): void {
   writer.writeBytes(type.bytes);
   writer.writeString("largeBytes");
   writer.writeBytes(type.largeBytes);
+  writer.writeString("bigint");
+  writer.writeBigInt(type.bigint);
+  writer.writeString("bignumber");
+  writer.writeBigNumber(type.bignumber);
+  writer.writeString("json");
+  writer.writeJSON(type.json);
   writer.writeString("array");
   writer.writeArray(type.array, (writer: Write, item: u8) => {
     writer.writeUInt8(item);
@@ -132,9 +147,12 @@ function serializeSanity(writer: Write, type: Sanity): void {
     writer.writeString(item);
   });
   writer.writeString("largeBytesArray");
-  writer.writeArray(type.largeBytesArray, (writer: Write, item: ArrayBuffer) => {
-    writer.writeBytes(item);
-  });
+  writer.writeArray(
+    type.largeBytesArray,
+    (writer: Write, item: ArrayBuffer) => {
+      writer.writeBytes(item);
+    }
+  );
   writer.writeString("map");
   writer.writeMap(
     type.map,
@@ -151,7 +169,6 @@ function serializeSanity(writer: Write, type: Sanity): void {
 
 function deserializeSanity(reader: Read, type: Sanity): void {
   let numFields = reader.readMapLength();
-
   while (numFields > 0) {
     numFields--;
     const field = reader.readString();
@@ -182,6 +199,12 @@ function deserializeSanity(reader: Read, type: Sanity): void {
       type.float64 = reader.readFloat64();
     } else if (field == "str") {
       type.str = reader.readString();
+    } else if (field == "bigint") {
+      type.bigint = reader.readBigInt();
+    } else if (field == "bignumber") {
+      type.bignumber = reader.readBigNumber();
+    } else if (field == "json") {
+      type.json = reader.readJSON();
     } else if (field == "largeStr") {
       type.largeStr = reader.readString();
     } else if (field == "bytes") {
@@ -195,11 +218,9 @@ function deserializeSanity(reader: Read, type: Sanity): void {
         }
       );
     } else if (field == "largeStrArray") {
-      type.largeStrArray = reader.readArray(
-        (reader: Read): string => {
-          return reader.readString();
-        }
-      );
+      type.largeStrArray = reader.readArray((reader: Read): string => {
+        return reader.readString();
+      });
     } else if (field == "largeBytesArray") {
       type.largeBytesArray = reader.readArray(
         (reader: Read): ArrayBuffer => {
@@ -243,7 +264,7 @@ function deserializeWithOverflow(reader: Read, type: Sanity): void {
     } else if (field == "uint8") {
       type.uint8 = <u8>reader.readUInt32();
     } else if (field == "uint16") {
-      type.uint16 = <u16>reader.readUInt8()
+      type.uint16 = <u16>reader.readUInt8();
     } else if (field == "uint32") {
       type.uint32 = <u32>reader.readUInt16();
     } else if (field == "boolean") {
@@ -258,6 +279,12 @@ function deserializeWithOverflow(reader: Read, type: Sanity): void {
       type.float64 = <f64>reader.readFloat32();
     } else if (field == "str") {
       type.str = reader.readString();
+    } else if (field == "bigint") {
+      type.bigint = reader.readBigInt();
+    } else if (field == "bignumber") {
+      type.bignumber = reader.readBigNumber();
+    } else if (field == "json") {
+      type.json = reader.readJSON();
     } else if (field == "bytes") {
       type.bytes = reader.readBytes();
     } else if (field == "array") {
@@ -320,6 +347,12 @@ function deserializeWithInvalidTypes(reader: Read, type: Sanity): void {
       type.float64 = reader.readFloat64();
     } else if (field == "str") {
       type.str = reader.readString();
+    } else if (field == "bigint") {
+      type.bigint = reader.readBigInt();
+    } else if (field == "bignumber") {
+      type.bignumber = reader.readBigNumber();
+    } else if (field == "json") {
+      type.json = reader.readJSON();
     } else if (field == "largeStr") {
       type.largeStr = reader.readString();
     } else if (field == "bytes") {
@@ -333,11 +366,9 @@ function deserializeWithInvalidTypes(reader: Read, type: Sanity): void {
         }
       );
     } else if (field == "largeStrArray") {
-      type.largeStrArray = reader.readArray(
-        (reader: Read): string => {
-          return reader.readString();
-        }
-      );
+      type.largeStrArray = reader.readArray((reader: Read): string => {
+        return reader.readString();
+      });
     } else if (field == "largeBytesArray") {
       type.largeBytesArray = reader.readArray(
         (reader: Read): ArrayBuffer => {
@@ -380,7 +411,6 @@ describe("MsgPack: Sanity", () => {
       output.fromBufferWithOverflows(input.toBuffer());
     }).toThrow();
   });
-
 });
 
 describe("MsgPack: Sanity", () => {

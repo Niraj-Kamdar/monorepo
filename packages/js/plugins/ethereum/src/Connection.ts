@@ -1,3 +1,5 @@
+import { Connection as SchemaConnection } from "./wrap";
+
 import { Signer, ethers } from "ethers";
 import {
   ExternalProvider,
@@ -13,7 +15,7 @@ export type Address = string;
 export type AccountIndex = number;
 export type EthereumSigner = Signer | Address | AccountIndex;
 export type EthereumProvider = string | ExternalProvider | JsonRpcProvider;
-export type EthereumClient = JsonRpcProvider;
+export type EthereumClient = Web3Provider | JsonRpcProvider;
 
 export interface ConnectionConfig {
   provider: EthereumProvider;
@@ -67,10 +69,15 @@ export class Connection {
       networkish = networkish.toLowerCase();
     }
 
+    const provider = (ethers.providers.getDefaultProvider(
+      ethers.providers.getNetwork(networkish),
+      {
+        infura: "1xraqrFyjLg2yrVtsN543WdKqJC",
+      }
+    ) as unknown) as JsonRpcProvider;
+
     return new Connection({
-      provider: (ethers.providers.getDefaultProvider(
-        ethers.providers.getNetwork(networkish)
-      ) as unknown) as JsonRpcProvider,
+      provider,
     });
   }
 
@@ -87,9 +94,9 @@ export class Connection {
     this._config.provider = provider;
 
     if (typeof provider === "string") {
-      this._client = (ethers.providers.getDefaultProvider(
-        provider
-      ) as unknown) as JsonRpcProvider | WebSocketProvider;
+      this._client = (ethers.providers.getDefaultProvider(provider, {
+        infura: "1xraqrFyjLg2yrVtsN543WdKqJC",
+      }) as unknown) as JsonRpcProvider | WebSocketProvider;
     } else {
       if ((provider as JsonRpcProvider).anyNetwork !== undefined) {
         this._client = provider as JsonRpcProvider;
@@ -113,13 +120,13 @@ export class Connection {
     } else if (Signer.isSigner(signer)) {
       this._config.signer = signer;
 
-      if (signer.provider !== this._config.provider) {
+      if (!this._client) {
         throw Error(
-          `Signer's connected provider does not match the config's ` +
-            `provider. Please call "setProvider(...)" before calling ` +
-            `"setSigner(...)" if a different provider is desired.`
+          `Please call "setProvider(...)" before calling setSigner(...)`
         );
       }
+
+      this._config.signer = signer.connect(this._client);
     } else {
       this._config.signer = signer;
     }
@@ -162,4 +169,60 @@ export class Connection {
       return new ethers.Contract(address, abi, this._client);
     }
   }
+}
+
+export async function getConnection(
+  connections: Connections,
+  defaultNetwork: string,
+  connection?: SchemaConnection | null
+): Promise<Connection> {
+  if (!connection) {
+    return connections[defaultNetwork];
+  }
+
+  const { networkNameOrChainId, node } = connection;
+  let result: Connection;
+
+  // If a custom network is provided, either get an already
+  // established connection, or a create a new one
+  if (networkNameOrChainId) {
+    const networkStr = networkNameOrChainId.toLowerCase();
+    if (connections[networkStr]) {
+      result = connections[networkStr];
+    } else {
+      const chainId = Number.parseInt(networkStr);
+
+      if (!isNaN(chainId)) {
+        result = Connection.fromNetwork(chainId);
+      } else {
+        result = Connection.fromNetwork(networkStr);
+      }
+    }
+  } else {
+    result = connections[defaultNetwork];
+  }
+
+  // If a custom node endpoint is provided, create a combined
+  // connection with the node's endpoint and a connection's signer
+  // (if one exists for the network)
+  if (node) {
+    const nodeConnection = Connection.fromNode(node);
+    const nodeNetwork = await nodeConnection.getProvider().getNetwork();
+
+    const establishedConnection =
+      connections[nodeNetwork.chainId.toString()] ||
+      connections[nodeNetwork.name];
+
+    if (establishedConnection) {
+      try {
+        nodeConnection.setSigner(establishedConnection.getSigner());
+      } catch (e) {
+        // It's okay if there isn't a signer available.
+      }
+    }
+
+    result = nodeConnection;
+  }
+
+  return result;
 }

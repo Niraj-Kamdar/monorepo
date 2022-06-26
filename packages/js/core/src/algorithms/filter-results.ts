@@ -1,4 +1,4 @@
-import { Tracer } from "@web3api/tracing-js";
+import { Tracer } from "@polywrap/tracing-js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const filterResults = Tracer.traceFunc(
@@ -20,7 +20,7 @@ export const filterResults = Tracer.traceFunc(
     const res: any = result;
 
     for (const key of Object.keys(filter)) {
-      if (res[key]) {
+      if (res[key] !== undefined) {
         if (typeof filter[key] === "boolean") {
           filtered[key] = res[key];
         } else {

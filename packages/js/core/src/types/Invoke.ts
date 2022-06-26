@@ -1,14 +1,12 @@
-import { Uri } from ".";
+import { ClientConfig, Uri } from ".";
 
-export type InvokableModules = "query" | "mutation";
-
-/** Options required for an API invocation. */
-export interface InvokeApiOptions<TUri = Uri> {
-  /** The API's URI */
+/** Options required for an Wrapper invocation. */
+export interface InvokeOptions<
+  TUri extends Uri | string = string,
+  TClientConfig extends ClientConfig = ClientConfig
+> {
+  /** The Wrapper's URI */
   uri: TUri;
-
-  /** Module to be called into. */
-  module: InvokableModules;
 
   /** Method to be executed. */
   method: string;
@@ -17,10 +15,10 @@ export interface InvokeApiOptions<TUri = Uri> {
    * Input arguments for the method, structured as a map,
    * removing the chance of incorrectly ordering arguments.
    */
-  input: Record<string, unknown> | ArrayBuffer;
+  input?: Record<string, unknown> | ArrayBuffer;
 
   /**
-   * Filters the [[InvokeApiResult]] data properties. The key
+   * Filters the [[InvokeResult]] data properties. The key
    * of this map is the property's name, while the value is
    * either true (meaning select this prop), or a nested named map,
    * allowing for the filtering of nested objects.
@@ -28,18 +26,28 @@ export interface InvokeApiOptions<TUri = Uri> {
   resultFilter?: Record<string, unknown>;
 
   /**
-   * If set to true, the invoke function will decode all msgpack results
-   * into JavaScript objects.
+   * If set to true, the invoke function will not decode the msgpack results
+   * into JavaScript objects, and instead return the raw ArrayBuffer.
    */
-  decode?: boolean;
+  noDecode?: boolean;
+
+  /**
+   * Override the client's config for all invokes within this invoke.
+   */
+  config?: Partial<TClientConfig>;
+
+  /**
+   * Invoke id used to track query context data set internally.
+   */
+  contextId?: string;
 }
 
 /**
- * Result of an API invocation.
+ * Result of an Wrapper invocation.
  *
  * @template TData Type of the invoke result data.
  */
-export interface InvokeApiResult<TData = unknown> {
+export interface InvokeResult<TData = unknown> {
   /**
    * Invoke result data. The type of this value is the return type
    * of the method. If undefined, it means something went wrong.
@@ -53,11 +61,7 @@ export interface InvokeApiResult<TData = unknown> {
 }
 
 export interface InvokeHandler {
-  invoke<TData = unknown>(
-    options: InvokeApiOptions<string>
-  ): Promise<InvokeApiResult<TData>>;
-
-  invoke<TData = unknown>(
-    options: InvokeApiOptions<Uri>
-  ): Promise<InvokeApiResult<TData>>;
+  invoke<TData = unknown, TUri extends Uri | string = string>(
+    options: InvokeOptions<TUri>
+  ): Promise<InvokeResult<TData>>;
 }
