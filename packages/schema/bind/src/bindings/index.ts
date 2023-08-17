@@ -45,6 +45,10 @@ export function getGenerateBindingFn(
       return WrapBindgen.getGenerateBindingFn(
         "https://github.com/polywrap/wrap-abi-bindgen/tree/wrap-0.1/implementations/app-typescript"
       );
+    case "app-rs":
+      return WrapBindgen.getGenerateBindingFn(
+        "https://github.com/polywrap/wrap-abi-bindgen/tree/nk/rs-app-codegen/implementations/app-rust"
+      );
     default:
       throw Error(`Error: Language binding unsupported - ${bindLanguage}`);
   }
