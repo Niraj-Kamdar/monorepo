@@ -2,8 +2,10 @@ import {
   w3_invoke_args,
   w3_invoke,
   w3_abort,
+  w3_sanitize_env,
   InvokeArgs
 } from "@web3api/wasm-as";
+
 {{#queryTypes}}
 {{#methods.length}}
 import {
@@ -71,6 +73,16 @@ export function _w3_load_env(environment_size: u32): void {
 }
 {{/environment.mutation.sanitized}}
 
+{{#environment.query.client}}
+export function _w3_sanitize_env(args_size: u32): void {
+  w3_sanitize_env(args_size, sanitizeQueryEnvWrapped);
+}
+{{/environment.query.client}}
+{{#environment.mutation.client}}
+export function _w3_sanitize_env(args_size: u32): void {
+  w3_sanitize_env(args_size, sanitizeMutationEnvWrapped)
+}
+{{/environment.mutation.client}}
 export function w3Abort(
   msg: string | null,
   file: string | null,
